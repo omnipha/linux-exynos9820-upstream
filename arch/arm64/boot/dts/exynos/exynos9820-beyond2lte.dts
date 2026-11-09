@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Samsung Galaxy S10+ (beyond2lte/SM-G975F) device tree source
+ *
+ * Copyright (c) 2026 chiffathefox <chiffathefoxx@gmail.com>
+ */
+
+/dts-v1/;
+#include "exynos9820-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy S10+ (SM-G975F)";
+	compatible = "samsung,beyond2lte", "samsung,exynos9820";
+	chassis-type = "handset";
+
+	chosen {
+		framebuffer0: framebuffer@ca000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x0 0xca000000 (1440 * 3040 * 4)>;
+			width = <1440>;
+			height = <3040>;
+			stride = <(1440 * 4)>;
+			format = "a8r8g8b8";
+			panel = <&panel>;
+
+			/* Dummy panel for simple-framebuffer dimension info */
+			panel: dummy-panel {
+				width-mm = <70>;
+				height-mm = <147>;
+			};
+		};
+	};
+};
+
+&battery {
+	compatible = "simple-battery";
+	constant-charge-current-max-microamp = <2850000>;
+	charge-full-design-microamp-hours = <4000000>;
+};
