@@ -1,0 +1,147 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/samsung,exynos9820-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos 9820 PCIe host controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  The Gen2 PCIe root complex of the Samsung Exynos 9820 SoC, based on the
+  Synopsys DesignWare PCIe IP. The PHY and PCS register spaces are managed
+  by the controller driver, so they are mapped as reg regions of this node
+  rather than through a separate PHY provider.
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+
+properties:
+  compatible:
+    const: samsung,exynos9820-pcie
+
+  reg:
+    items:
+      - description: Data Bus Interface (DBI) registers.
+      - description: External Local Bus interface (ELBI) registers.
+      - description: PHY registers.
+      - description: PCS registers.
+      - description: PCIe configuration space region.
+
+  reg-names:
+    items:
+      - const: dbi
+      - const: elbi
+      - const: phy
+      - const: pcs
+      - const: config
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: PHY reference clock input.
+      - description: DBI AXI clock.
+      - description: PHY IEEE1500 wrapper SCL APB clock.
+      - description: master AXI clock.
+      - description: sub-control instance driver APB clock.
+      - description: PCS PIPE2 digital wrapper APB clock.
+      - description: slave AXI clock.
+      - description: address translation block clock.
+
+  clock-names:
+    items:
+      - const: ref
+      - const: dbi
+      - const: phy-apb
+      - const: master
+      - const: ctrl-apb
+      - const: pcs-apb
+      - const: slave
+      - const: ia
+
+  samsung,pmu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the PMU system controller, for the PCIe PHY isolation
+      control register.
+
+  samsung,sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the FSYS1 system registry, for the PCIe PHY control
+      registers.
+
+  reset-gpios:
+    description:
+      GPIO controlling the PERST# signal of the PCIe bus. Must be active-low.
+    maxItems: 1
+
+  vpcie-supply:
+    description:
+      Regulator powering the external PCIe device, asserted before the
+      link is brought up.
+
+  num-lanes:
+    const: 1
+
+  max-link-speed:
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - "#address-cells"
+  - "#size-cells"
+  - "#interrupt-cells"
+  - interrupt-map
+  - interrupt-map-mask
+  - ranges
+  - bus-range
+  - device_type
+  - num-lanes
+  - max-link-speed
+  - clocks
+  - clock-names
+  - samsung,pmu-syscon
+  - samsung,sysreg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pcie: pcie@13f00000 {
+        compatible = "samsung,exynos9820-pcie";
+        reg = <0x13f00000 0x1000>,
+              <0x13ed0000 0x1000>,
+              <0x13ef0000 0x1000>,
+              <0x13ee0000 0x200>,
+              <0x14ffe000 0x2000>;
+        reg-names = "dbi", "elbi", "phy", "pcs", "config";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        ranges = <0x82000000 0 0x14000000 0x14000000 0 0x00ff0000>;
+        bus-range = <0x00 0x01>;
+        num-lanes = <1>;
+        max-link-speed = <1>;
+        interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0 0 0 0>;
+        interrupt-map = <0 0 0 0 &gic GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cmu_fsys1 11>, <&cmu_fsys1 23>, <&cmu_fsys1 24>,
+                 <&cmu_fsys1 25>, <&cmu_fsys1 26>, <&cmu_fsys1 27>,
+                 <&cmu_fsys1 28>, <&cmu_fsys1 29>;
+        clock-names = "ref", "dbi", "phy-apb", "master", "ctrl-apb",
+                      "pcs-apb", "slave", "ia";
+        samsung,pmu-syscon = <&pmu_system_controller>;
+        samsung,sysreg = <&sysreg_fsys1>;
+    };
+...
