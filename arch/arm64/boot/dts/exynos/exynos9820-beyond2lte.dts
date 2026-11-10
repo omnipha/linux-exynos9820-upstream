@@ -48,6 +48,11 @@
 	charge-full-design-microamp-hours = <4000000>;
 };
 
+&usbdrd_dwc3 {
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+};
+
 &pcie_wifi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie0_clkreq &pcie0_perst>;
