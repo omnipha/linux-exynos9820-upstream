@@ -30,10 +30,53 @@
 			};
 		};
 	};
+
+	wlan_pwr: regulator-wlan {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan_reg_on";
+		gpio = <&gpg0 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <200000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_en>;
+	};
 };
 
 &battery {
 	compatible = "simple-battery";
 	constant-charge-current-max-microamp = <2850000>;
 	charge-full-design-microamp-hours = <4000000>;
+};
+
+&pcie_wifi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie0_clkreq &pcie0_perst>;
+	reset-gpios = <&gpf2 2 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&wlan_pwr>;
+	status = "okay";
+};
+
+&pinctrl_fsys1 {
+	pcie0_clkreq: pcie0-clkreq-pins {
+		samsung,pins = "gpf2-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <3>;
+	};
+
+	pcie0_perst: pcie0-perst-pins {
+		samsung,pins = "gpf2-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <3>;
+	};
+};
+
+&pinctrl_peric0 {
+	wlan_en: wlan-en-pins {
+		samsung,pins = "gpg0-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <3>;
+	};
 };
