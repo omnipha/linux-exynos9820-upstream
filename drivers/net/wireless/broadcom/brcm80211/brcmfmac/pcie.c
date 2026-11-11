@@ -66,6 +66,7 @@ BRCMF_FW_DEF(4365C, "brcmfmac4365c-pcie");
 BRCMF_FW_DEF(4366B, "brcmfmac4366b-pcie");
 BRCMF_FW_DEF(4366C, "brcmfmac4366c-pcie");
 BRCMF_FW_DEF(4371, "brcmfmac4371-pcie");
+BRCMF_FW_CLM_DEF(4375B1, "brcmfmac4375b1-pcie");
 BRCMF_FW_CLM_DEF(43752, "brcmfmac43752-pcie");
 BRCMF_FW_CLM_DEF(4377B3, "brcmfmac4377b3-pcie");
 BRCMF_FW_CLM_DEF(4378B1, "brcmfmac4378b1-pcie");
@@ -107,6 +108,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43664_CHIP_ID, 0xFFFFFFF0, 4366C),
 	BRCMF_FW_ENTRY(BRCM_CC_43666_CHIP_ID, 0xFFFFFFF0, 4366C),
 	BRCMF_FW_ENTRY(BRCM_CC_4371_CHIP_ID, 0xFFFFFFFF, 4371),
+	BRCMF_FW_ENTRY(BRCM_CC_4375_CHIP_ID, 0xFFFFFFFF, 4375B1),
 	BRCMF_FW_ENTRY(BRCM_CC_43752_CHIP_ID, 0xFFFFFFFF, 43752),
 	BRCMF_FW_ENTRY(BRCM_CC_4377_CHIP_ID, 0xFFFFFFFF, 4377B3), /* revision ID 4 */
 	BRCMF_FW_ENTRY(BRCM_CC_4378_CHIP_ID, 0x0000000F, 4378B1), /* revision ID 3 */
@@ -213,6 +215,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 						 BRCMF_PCIE_64_MB_INT_D2H7_DB0 | \
 						 BRCMF_PCIE_64_MB_INT_D2H7_DB1)
 
+#define BRCMF_PCIE_SHARED_VERSION_6		6
 #define BRCMF_PCIE_SHARED_VERSION_7		7
 #define BRCMF_PCIE_MIN_SHARED_VERSION		5
 #define BRCMF_PCIE_MAX_SHARED_VERSION		BRCMF_PCIE_SHARED_VERSION_7
@@ -220,6 +223,10 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 #define BRCMF_PCIE_SHARED_DMA_INDEX		0x10000
 #define BRCMF_PCIE_SHARED_DMA_2B_IDX		0x100000
 #define BRCMF_PCIE_SHARED_HOSTRDY_DB1		0x10000000
+
+#define BRCMF_HOSTCAP_H2D_ENABLE_HOSTRDY	0x00000400
+#define BRCMF_HOSTCAP_DS_NO_OOB_DW		0x00001000
+#define BRCMF_HOSTCAP_UR_FW_NO_TRAP		0x00800000
 
 #define BRCMF_PCIE_FLAGS_HTOD_SPLIT		0x4000
 #define BRCMF_PCIE_FLAGS_DTOH_SPLIT		0x8000
@@ -235,6 +242,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 #define BRCMF_SHARED_DMA_SCRATCH_ADDR_OFFSET	56
 #define BRCMF_SHARED_DMA_RINGUPD_LEN_OFFSET	64
 #define BRCMF_SHARED_DMA_RINGUPD_ADDR_OFFSET	68
+#define BRCMF_SHARED_HOST_CAP_OFFSET		84
 
 #define BRCMF_RING_H2D_RING_COUNT_OFFSET	0
 #define BRCMF_RING_D2H_RING_COUNT_OFFSET	1
@@ -813,7 +821,7 @@ static void brcmf_pcie_handle_mb_data(struct brcmf_pciedev_info *devinfo)
 	brcmf_pcie_write_tcm32(devinfo, addr, 0);
 
 	brcmf_dbg(PCIE, "D2H_MB_DATA: 0x%04x\n", dtoh_mb_data);
-	if (dtoh_mb_data & BRCMF_D2H_DEV_DS_ENTER_REQ)  {
+	if (dtoh_mb_data & BRCMF_D2H_DEV_DS_ENTER_REQ) {
 		brcmf_dbg(PCIE, "D2H_MB_DATA: DEEP SLEEP REQ\n");
 		brcmf_pcie_send_mb_data(devinfo, BRCMF_H2D_HOST_DS_ACK);
 		brcmf_dbg(PCIE, "D2H_MB_DATA: sent DEEP SLEEP ACK\n");
@@ -1627,7 +1635,8 @@ brcmf_pcie_init_share_ram_info(struct brcmf_pciedev_info *devinfo,
 
 	shared->flags = brcmf_pcie_read_tcm32(devinfo, sharedram_addr);
 	shared->version = (u8)(shared->flags & BRCMF_PCIE_SHARED_VERSION_MASK);
-	brcmf_dbg(PCIE, "PCIe protocol version %d\n", shared->version);
+	brcmf_dbg(PCIE, "PCIe protocol version %d, flags %08x\n", shared->version,
+		  shared->flags);
 	if ((shared->version > BRCMF_PCIE_MAX_SHARED_VERSION) ||
 	    (shared->version < BRCMF_PCIE_MIN_SHARED_VERSION)) {
 		brcmf_err(bus, "Unsupported PCIE version %d\n",
@@ -1662,6 +1671,19 @@ brcmf_pcie_init_share_ram_info(struct brcmf_pciedev_info *devinfo,
 
 	brcmf_dbg(PCIE, "max rx buf post %d, rx dataoffset %d\n",
 		  shared->max_rxbufpost, shared->rx_dataoffset);
+
+	if (devinfo->ci->chip == BRCM_CC_4375_CHIP_ID &&
+	    shared->version >= BRCMF_PCIE_SHARED_VERSION_6) {
+		u32 host_cap = shared->version | BRCMF_HOSTCAP_DS_NO_OOB_DW |
+			       BRCMF_HOSTCAP_UR_FW_NO_TRAP;
+
+		if (shared->flags & BRCMF_PCIE_SHARED_HOSTRDY_DB1)
+			host_cap |= BRCMF_HOSTCAP_H2D_ENABLE_HOSTRDY;
+		brcmf_pcie_write_tcm32(devinfo,
+				       sharedram_addr + BRCMF_SHARED_HOST_CAP_OFFSET,
+				       host_cap);
+		brcmf_dbg(PCIE, "host_cap %08x\n", host_cap);
+	}
 
 	brcmf_pcie_bus_console_init(devinfo);
 	brcmf_pcie_bus_console_read(devinfo, false);
@@ -2747,6 +2769,7 @@ static const struct pci_device_id brcmf_pcie_devid_table[] = {
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4366_5G_DEVICE_ID, BCA),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4371_DEVICE_ID, WCC),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43596_DEVICE_ID, CYW),
+	BRCMF_PCIE_DEVICE(BRCM_PCIE_4375_DEVICE_ID, WCC_SEED),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4377_DEVICE_ID, WCC_SEED),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4378_DEVICE_ID, WCC_SEED),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4387_DEVICE_ID, WCC_SEED),

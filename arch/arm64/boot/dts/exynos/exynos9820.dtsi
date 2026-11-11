@@ -920,6 +920,40 @@
 			clocks = <&cmu_fsys1 CLK_GOUT_FSYS1_SYSREG_FSYS1_PCLK>;
 		};
 
+		pcie_wifi: pcie@13f00000 {
+			compatible = "samsung,exynos9820-pcie";
+			reg = <0x13f00000 0x1000>,
+			      <0x13ed0000 0x1000>,
+			      <0x13ef0000 0x1000>,
+			      <0x13ee0000 0x200>,
+			      <0x14ffe000 0x2000>;
+			reg-names = "dbi", "elbi", "phy", "pcs", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x82000000 0 0x14000000 0x14000000 0 0x00ff0000>;
+			bus-range = <0x00 0x01>;
+			num-lanes = <1>;
+			max-link-speed = <1>;
+			interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_PHY_REFCLK_IN>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_DBI_ACLK>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_IEEE1500_WRAPPER_FOR_PCIEG2_PHY_X1_INST_0_I_SCL_APB_PCLK>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_MSTR_ACLK>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_PCIE_SUB_CTRL_INST_0_I_DRIVER_APB_CLK>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_PIPE2_DIGITAL_X1_WRAP_INST_0_I_APB_PCLK_SCL>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_GEN2_SLV_ACLK>,
+				 <&cmu_fsys1 CLK_GOUT_FSYS1_PCIE_IA_GEN2_I_CLK>;
+			clock-names = "ref", "dbi", "phy-apb", "master", "ctrl-apb",
+				      "pcs-apb", "slave", "ia";
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			samsung,sysreg = <&sysreg_fsys1>;
+			status = "disabled";
+		};
+
 		pinctrl_fsys1: pinctrl@13c40000 {
 			compatible = "samsung,exynos9820-pinctrl";
 			reg = <0x13c40000 0x1000>;
