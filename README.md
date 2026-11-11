@@ -1,74 +1,57 @@
-# Linux for Samsung Exynos 9820 (Galaxy S10 series)
+# Linux for Samsung Exynos 9820
 
-Actively maintained kernel tree for Samsung **Exynos 9820** devices
-(Galaxy S10 / S10+ / S10 5G / S10e: `beyond0lte`, `beyond1lte`, `beyond2lte`).
+A community kernel tree for bringing Linux to Samsung Exynos 9820 devices, including the Galaxy S10 series. Our aim is to share tested code, report device support honestly, and work toward upstream Linux support.
 
-This is a fork of [chiffathefox/exynos-9820-mainline-linux](https://github.com/chiffathefox/exynos-9820-mainline-linux)
-(branch `exynos9820-7.2-rc2`, Linux 7.2-rc2 base), extended with device trees,
-PCIe host support and BCM4375 WLAN — all verified on real hardware.
-The stock kernel `README` still applies for general kernel questions.
+**Status: experimental, not a finished phone OS or an installation image.** The WLAN changes are in this repository's `main` branch; they have not been submitted to or accepted by the upstream Linux kernel.
 
-## Hardware status (measured, not claimed)
+## Hardware status
 
-Verified on **SM-G975F (Galaxy S10+, `beyond2lte`)** — evidence in
-[issue #1](https://github.com/omnipha/linux-exynos9820-upstream/issues/1) and
-[PR #2](https://github.com/omnipha/linux-exynos9820-upstream/pull/2):
+The results below were measured on a **Galaxy S10+ SM-G975F (`beyond2lte`)**, using a postmarketOS-based system, kernel `7.2.0-rc2-g160cc32e597f` ([tested commit](https://github.com/omnipha/linux-exynos9820-upstream/commit/160cc32e597f)) and a custom U-Boot/initramfs setup. They do not establish support for other models or all hardware revisions.
 
-| Subsystem | Status |
-|---|---|
-| Boot (U-Boot → systemd-boot → kernel) | working, incl. display console |
-| UFS storage (`sda1`–`sda31`) | working |
-| USB (gadget/NCM network, high-speed peripheral) | working |
-| Display (SimpleFB console) + touchscreen | working |
-| **WLAN BCM4375 (PCIe, brcmfmac)** | **working**: Gen1 x1 link up, firmware 18.41.117, scan, WPA2 association, DHCP, traffic |
-| GPU (Mali G76), modem, audio, Bluetooth, sensors, camera | untested / not enabled |
+| Component | Observed status |
+| --- | --- |
+| Boot and storage | Kernel boots and mounts the root filesystem with the custom boot setup. The test system experienced ext4 corruption; long-term storage reliability is not established. |
+| USB networking | USB gadget networking and SSH worked with the test initramfs and device-specific setup. |
+| Display and touch | Simple framebuffer console worked; touch was demonstrated in the initramfs. A desktop and accelerated graphics have not been verified. |
+| BCM4375 Wi-Fi | PCIe Gen1 x1 link, firmware 18.41.117, scan, WPA2 association, DHCP and SSH over Wi-Fi were verified after manual setup. |
+| GPU, mobile network, audio, Bluetooth, sensors, cameras | Not verified by this project. |
 
-Known WLAN gaps: first firmware load requires the correct board NVRAM as
-`brcmfmac4375b1-pcie.txt` (Semco CS01 verified on S10+; other modules may need
-their own NVRAM), P2P device creation fails (`err=-5`), suspend/resume not
-implemented. The PCIe binding lists `reset-gpios` as optional while the driver
-requires it — under review.
+The tree also contains a device tree for `beyond1lte` (Galaxy S10); we have not verified it on hardware. Other S10-series models need their own verification.
 
-## What is in this tree (on top of the 7.2-rc2 base)
+### Known Wi-Fi limitations
 
-- `exynos9820-beyond1lte`/`beyond2lte` device trees (from U-Boot `dec4927b`)
-- PCIe Gen2 root-complex driver for the WLAN PHY (`drivers/pci/controller/dwc/pcie-exynos9820.c`)
-  + DT binding (`Documentation/devicetree/bindings/pci/samsung,exynos9820-pcie.yaml`)
-- BCM4375 PCIe support in brcmfmac (IDs, firmware map, TCM base, protocol v6 handshake)
-- USB2 peripheral mode for `beyond2lte`, defconfig enabling all of the above
+- The test used Broadcom firmware and a board-specific Semco CS01 NVRAM candidate installed under `brcmfmac4375b1-pcie.txt`. Other hardware variants may require different calibration data; firmware and NVRAM are not provided here. Correct regulatory configuration still needs verification.
+- Network setup was manual/transient. Automatic connection across reboot has not been verified: [issue #3](https://github.com/omnipha/linux-exynos9820-upstream/issues/3).
+- Creating the P2P device timed out (`err=-5`): [issue #4](https://github.com/omnipha/linux-exynos9820-upstream/issues/4). Suspend/resume is unverified.
+- The PCIe binding treats `reset-gpios` as optional while the driver requires it: [issue #5](https://github.com/omnipha/linux-exynos9820-upstream/issues/5).
 
-## Build
+The detailed Wi-Fi bring-up evidence is in [issue #1](https://github.com/omnipha/linux-exynos9820-upstream/issues/1#issuecomment-6782996563) and [PR #2](https://github.com/omnipha/linux-exynos9820-upstream/pull/2). PCIe and WLAN changes from that PR were merged into `main`.
 
-Cross-build with Clang/LLVM (verified with clang 17):
+## Building
+
+The source is based on Linux 7.2-rc2, via the [`exynos9820-7.2-rc2` branch](https://github.com/chiffathefox/exynos-9820-mainline-linux/tree/exynos9820-7.2-rc2). An ARM64 image, modules and device tree were previously built with Clang 17 for the tested commit. This is a kernel source tree, not a complete bootable image.
+
+Example cross-build with Clang/LLVM 17 and the usual kernel build dependencies:
 
 ```sh
+git clone https://github.com/omnipha/linux-exynos9820-upstream.git
+cd linux-exynos9820-upstream
 make O=out ARCH=arm64 LLVM=-17 defconfig
-make -j$(nproc) O=out ARCH=arm64 LLVM=-17 Image dtbs modules
+make -j"$(nproc)" O=out ARCH=arm64 LLVM=-17 Image modules dtbs
 ```
 
-Device tree: `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`.
+The S10+ device tree is `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`. On the merged tree we rechecked `defconfig`, that device-tree target, and compilation of the Exynos PCIe and brcmfmac PCIe objects. This example has not been validated as a complete, reproducible phone installation; it does not by itself reproduce the custom boot environment used for the hardware test.
 
-WLAN additionally needs Broadcom firmware files in `/usr/lib/firmware/brcm/`
-(`brcmfmac4375b1-pcie.bin`, `.clm_blob` and board NVRAM as `.txt`). These are
-not part of this repository.
+## Getting involved
 
-## Boot / install
+- Browse the [open issues](https://github.com/omnipha/linux-exynos9820-upstream/issues) for known problems and ongoing work.
+- Report hardware results with the exact model and variant, kernel commit, configuration, logs and what you tested. Please remove serial numbers, credentials, MAC/IP addresses and other personal data from public logs.
+- Contributions and corrections are welcome through GitHub issues and pull requests. For eventual Linux mainline submission, follow the [kernel contribution process](Documentation/process/submitting-patches.rst); merging here does not merge anything upstream.
 
-These devices boot via a custom U-Boot on the `boot` partition loading
-systemd-boot from a partition image on `userdata` — Samsung Exynos 9820 has no
-fastboot; flashing goes through Download mode (Heimdall) or recovery.
-There is no one-line installer yet. If you bring up one of these devices,
-open an issue — tested reports are welcome.
+There is no tested general-purpose installer or recovery guide yet. Bootloader and storage changes can make a device unbootable or erase data; do not flash images based only on this README. Confirm your exact device, backups and recovery path first.
 
-## Contributing
+## Credits and license
 
-PRs and issues here on GitHub. For anything intended for mainline, follow the
-normal kernel process (`Documentation/process/submitting-patches.rst`); series
-should go to the PCI / brcm80211 / Samsung-SoC / devicetree lists.
+This tree builds on [chiffathefox/exynos-9820-mainline-linux](https://github.com/chiffathefox/exynos-9820-mainline-linux). The PCIe/Wi-Fi work used Samsung vendor sources from [LineageOS/android_kernel_samsung_exynos9820](https://github.com/LineageOS/android_kernel_samsung_exynos9820/tree/a412cfaf86b980ce35cae96a35f678c8ea551575) and [pulpoff/linux-beyond0lte](https://github.com/pulpoff/linux-beyond0lte/tree/3c142b4624f3caf9cb0ee90324ef7d62616d2a64) as references; see [PR #2](https://github.com/omnipha/linux-exynos9820-upstream/pull/2) for details.
 
-## License
-
-GPL-2.0 (see `COPYING`), like the Linux kernel itself. The PCIe driver derives
-from Samsung GPL vendor sources (LineageOS `android_kernel_samsung_exynos9820`)
-and [pulpoff/linux-beyond0lte](https://github.com/pulpoff/linux-beyond0lte); see
-the commit messages of PR #2 for exact provenance.
+Kernel licensing information is in [COPYING](COPYING) and [license-rules.rst](Documentation/process/license-rules.rst). The original general kernel introduction is preserved in [README](README).
