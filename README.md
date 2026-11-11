@@ -6,7 +6,7 @@ A community kernel tree for bringing Linux to Samsung Exynos 9820 devices, inclu
 
 ## Hardware status
 
-The results below were measured on a **Galaxy S10+ SM-G975F (`beyond2lte`)**, using a postmarketOS-based system, kernel `7.2.0-rc2-g160cc32e597f` ([tested commit](https://github.com/omnipha/linux-exynos9820-upstream/commit/160cc32e597f)) and a custom U-Boot/initramfs setup. They do not establish support for other models or all hardware revisions.
+The results below were measured on a **Galaxy S10+ SM-G975F (`beyond2lte`)**, using a postmarketOS-based system, kernel `7.2.0-rc2-g160cc32e597f` ([tested commit](https://github.com/omnipha/linux-samsung-s10-exynos9820/commit/160cc32e597f)) and a custom U-Boot/initramfs setup. They do not establish support for other models or all hardware revisions.
 
 | Component | Observed status |
 | --- | --- |
@@ -21,11 +21,11 @@ The tree also contains a device tree for `beyond1lte` (Galaxy S10); we have not 
 ### Known Wi-Fi limitations
 
 - The test used Broadcom firmware and a board-specific Semco CS01 NVRAM candidate installed under `brcmfmac4375b1-pcie.txt`. Other hardware variants may require different calibration data; firmware and NVRAM are not provided here. Correct regulatory configuration still needs verification.
-- Network setup was manual/transient. Automatic connection across reboot has not been verified: [issue #3](https://github.com/omnipha/linux-exynos9820-upstream/issues/3).
-- Creating the P2P device timed out (`err=-5`): [issue #4](https://github.com/omnipha/linux-exynos9820-upstream/issues/4). Suspend/resume is unverified.
-- The PCIe binding treats `reset-gpios` as optional while the driver requires it: [issue #5](https://github.com/omnipha/linux-exynos9820-upstream/issues/5).
+- Network setup was manual/transient. Automatic connection across reboot has not been verified: [issue #3](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/3).
+- Creating the P2P device timed out (`err=-5`): [issue #4](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/4). Suspend/resume is unverified.
+- The PCIe binding treats `reset-gpios` as optional while the driver requires it: [issue #5](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/5).
 
-The detailed Wi-Fi bring-up evidence is in [issue #1](https://github.com/omnipha/linux-exynos9820-upstream/issues/1#issuecomment-6782996563) and [PR #2](https://github.com/omnipha/linux-exynos9820-upstream/pull/2). PCIe and WLAN changes from that PR were merged into `main`.
+The detailed Wi-Fi bring-up evidence is in [issue #1](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/1#issuecomment-6782996563) and [PR #2](https://github.com/omnipha/linux-samsung-s10-exynos9820/pull/2). PCIe and WLAN changes from that PR were merged into `main`.
 
 ## Building
 
@@ -34,7 +34,7 @@ The source is based on Linux 7.2-rc2, via the [`exynos9820-7.2-rc2` branch](http
 Example cross-build with Clang/LLVM 17 and the usual kernel build dependencies:
 
 ```sh
-git clone https://github.com/omnipha/linux-exynos9820-upstream.git
+git clone https://github.com/omnipha/linux-samsung-s10-exynos9820.git
 cd linux-exynos9820-upstream
 make O=out ARCH=arm64 LLVM=-17 defconfig
 make -j"$(nproc)" O=out ARCH=arm64 LLVM=-17 Image modules dtbs
@@ -44,7 +44,7 @@ The S10+ device tree is `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dt
 
 ## Getting involved
 
-- Browse the [open issues](https://github.com/omnipha/linux-exynos9820-upstream/issues) for known problems and ongoing work.
+- Browse the [open issues](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues) for known problems and ongoing work.
 - Report hardware results with the exact model and variant, kernel commit, configuration, logs and what you tested. Please remove serial numbers, credentials, MAC/IP addresses and other personal data from public logs.
 - Contributions and corrections are welcome through GitHub issues and pull requests. For eventual Linux mainline submission, follow the [kernel contribution process](Documentation/process/submitting-patches.rst); merging here does not merge anything upstream.
 
@@ -52,6 +52,6 @@ There is no tested general-purpose installer or recovery guide yet. Bootloader a
 
 ## Credits and license
 
-This tree builds on [chiffathefox/exynos-9820-mainline-linux](https://github.com/chiffathefox/exynos-9820-mainline-linux). The PCIe/Wi-Fi work used Samsung vendor sources from [LineageOS/android_kernel_samsung_exynos9820](https://github.com/LineageOS/android_kernel_samsung_exynos9820/tree/a412cfaf86b980ce35cae96a35f678c8ea551575) and [pulpoff/linux-beyond0lte](https://github.com/pulpoff/linux-beyond0lte/tree/3c142b4624f3caf9cb0ee90324ef7d62616d2a64) as references; see [PR #2](https://github.com/omnipha/linux-exynos9820-upstream/pull/2) for details.
+This tree builds on [chiffathefox/exynos-9820-mainline-linux](https://github.com/chiffathefox/exynos-9820-mainline-linux). The PCIe/Wi-Fi work used Samsung vendor sources from [LineageOS/android_kernel_samsung_exynos9820](https://github.com/LineageOS/android_kernel_samsung_exynos9820/tree/a412cfaf86b980ce35cae96a35f678c8ea551575) and [pulpoff/linux-beyond0lte](https://github.com/pulpoff/linux-beyond0lte/tree/3c142b4624f3caf9cb0ee90324ef7d62616d2a64) as references; see [PR #2](https://github.com/omnipha/linux-samsung-s10-exynos9820/pull/2) for details.
 
 Kernel licensing information is in [COPYING](COPYING) and [license-rules.rst](Documentation/process/license-rules.rst). The original general kernel introduction is preserved in [README](README).
