@@ -35,7 +35,7 @@ Example cross-build with Clang/LLVM 17 and the usual kernel build dependencies:
 
 ```sh
 git clone https://github.com/omnipha/linux-samsung-s10-exynos9820.git
-cd linux-exynos9820-upstream
+cd linux-samsung-s10-exynos9820
 make O=out ARCH=arm64 LLVM=-17 defconfig
 make -j"$(nproc)" O=out ARCH=arm64 LLVM=-17 Image modules dtbs
 ```
