@@ -1,168 +1,74 @@
-Linux kernel
-============
+# Linux for Samsung Exynos 9820 (Galaxy S10 series)
 
-The Linux kernel is the core of any Linux operating system. It manages hardware,
-system resources, and provides the fundamental services for all other software.
+Actively maintained kernel tree for Samsung **Exynos 9820** devices
+(Galaxy S10 / S10+ / S10 5G / S10e: `beyond0lte`, `beyond1lte`, `beyond2lte`).
 
-Quick Start
------------
+This is a fork of [chiffathefox/exynos-9820-mainline-linux](https://github.com/chiffathefox/exynos-9820-mainline-linux)
+(branch `exynos9820-7.2-rc2`, Linux 7.2-rc2 base), extended with device trees,
+PCIe host support and BCM4375 WLAN — all verified on real hardware.
+The stock kernel `README` still applies for general kernel questions.
 
-* Report a bug: See Documentation/admin-guide/reporting-issues.rst
-* Get the latest kernel: https://kernel.org
-* Build the kernel: See Documentation/admin-guide/quickly-build-trimmed-linux.rst
-* Join the community: https://lore.kernel.org/
+## Hardware status (measured, not claimed)
 
-Essential Documentation
------------------------
+Verified on **SM-G975F (Galaxy S10+, `beyond2lte`)** — evidence in
+[issue #1](https://github.com/omnipha/linux-exynos9820-upstream/issues/1) and
+[PR #2](https://github.com/omnipha/linux-exynos9820-upstream/pull/2):
 
-All users should be familiar with:
+| Subsystem | Status |
+|---|---|
+| Boot (U-Boot → systemd-boot → kernel) | working, incl. display console |
+| UFS storage (`sda1`–`sda31`) | working |
+| USB (gadget/NCM network, high-speed peripheral) | working |
+| Display (SimpleFB console) + touchscreen | working |
+| **WLAN BCM4375 (PCIe, brcmfmac)** | **working**: Gen1 x1 link up, firmware 18.41.117, scan, WPA2 association, DHCP, traffic |
+| GPU (Mali G76), modem, audio, Bluetooth, sensors, camera | untested / not enabled |
 
-* Building requirements: Documentation/process/changes.rst
-* Code of Conduct: Documentation/process/code-of-conduct.rst
-* License: See COPYING
+Known WLAN gaps: first firmware load requires the correct board NVRAM as
+`brcmfmac4375b1-pcie.txt` (Semco CS01 verified on S10+; other modules may need
+their own NVRAM), P2P device creation fails (`err=-5`), suspend/resume not
+implemented. The PCIe binding lists `reset-gpios` as optional while the driver
+requires it — under review.
 
-Documentation can be built with make htmldocs or viewed online at:
-https://www.kernel.org/doc/html/latest/
+## What is in this tree (on top of the 7.2-rc2 base)
 
+- `exynos9820-beyond1lte`/`beyond2lte` device trees (from U-Boot `dec4927b`)
+- PCIe Gen2 root-complex driver for the WLAN PHY (`drivers/pci/controller/dwc/pcie-exynos9820.c`)
+  + DT binding (`Documentation/devicetree/bindings/pci/samsung,exynos9820-pcie.yaml`)
+- BCM4375 PCIe support in brcmfmac (IDs, firmware map, TCM base, protocol v6 handshake)
+- USB2 peripheral mode for `beyond2lte`, defconfig enabling all of the above
 
-Who Are You?
-============
+## Build
 
-Find your role below:
+Cross-build with Clang/LLVM (verified with clang 17):
 
-* New Kernel Developer - Getting started with kernel development
-* Academic Researcher - Studying kernel internals and architecture
-* Security Expert - Hardening and vulnerability analysis
-* Backport/Maintenance Engineer - Maintaining stable kernels
-* System Administrator - Configuring and troubleshooting
-* Maintainer - Leading subsystems and reviewing patches
-* Hardware Vendor - Writing drivers for new hardware
-* Distribution Maintainer - Packaging kernels for distros
-* AI Coding Assistant - LLMs and AI-powered development tools
+```sh
+make O=out ARCH=arm64 LLVM=-17 defconfig
+make -j$(nproc) O=out ARCH=arm64 LLVM=-17 Image dtbs modules
+```
 
+Device tree: `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`.
 
-For Specific Users
-==================
+WLAN additionally needs Broadcom firmware files in `/usr/lib/firmware/brcm/`
+(`brcmfmac4375b1-pcie.bin`, `.clm_blob` and board NVRAM as `.txt`). These are
+not part of this repository.
 
-New Kernel Developer
---------------------
+## Boot / install
 
-Welcome! Start your kernel development journey here:
+These devices boot via a custom U-Boot on the `boot` partition loading
+systemd-boot from a partition image on `userdata` — Samsung Exynos 9820 has no
+fastboot; flashing goes through Download mode (Heimdall) or recovery.
+There is no one-line installer yet. If you bring up one of these devices,
+open an issue — tested reports are welcome.
 
-* Getting Started: Documentation/process/development-process.rst
-* Your First Patch: Documentation/process/submitting-patches.rst
-* Coding Style: Documentation/process/coding-style.rst
-* Build System: Documentation/kbuild/index.rst
-* Development Tools: Documentation/dev-tools/index.rst
-* Kernel Hacking Guide: Documentation/kernel-hacking/hacking.rst
-* Core APIs: Documentation/core-api/index.rst
+## Contributing
 
-Academic Researcher
--------------------
+PRs and issues here on GitHub. For anything intended for mainline, follow the
+normal kernel process (`Documentation/process/submitting-patches.rst`); series
+should go to the PCI / brcm80211 / Samsung-SoC / devicetree lists.
 
-Explore the kernel's architecture and internals:
+## License
 
-* Researcher Guidelines: Documentation/process/researcher-guidelines.rst
-* Memory Management: Documentation/mm/index.rst
-* Scheduler: Documentation/scheduler/index.rst
-* Networking Stack: Documentation/networking/index.rst
-* Filesystems: Documentation/filesystems/index.rst
-* RCU (Read-Copy Update): Documentation/RCU/index.rst
-* Locking Primitives: Documentation/locking/index.rst
-* Power Management: Documentation/power/index.rst
-
-Security Expert
----------------
-
-Security documentation and hardening guides:
-
-* Security Documentation: Documentation/security/index.rst
-* LSM Development: Documentation/security/lsm-development.rst
-* Self Protection: Documentation/security/self-protection.rst
-* Reporting Vulnerabilities: Documentation/process/security-bugs.rst
-* CVE Procedures: Documentation/process/cve.rst
-* Embargoed Hardware Issues: Documentation/process/embargoed-hardware-issues.rst
-* Security Features: Documentation/userspace-api/seccomp_filter.rst
-
-Backport/Maintenance Engineer
------------------------------
-
-Maintain and stabilize kernel versions:
-
-* Stable Kernel Rules: Documentation/process/stable-kernel-rules.rst
-* Backporting Guide: Documentation/process/backporting.rst
-* Applying Patches: Documentation/process/applying-patches.rst
-* Subsystem Profile: Documentation/maintainer/maintainer-entry-profile.rst
-* Git for Maintainers: Documentation/maintainer/configure-git.rst
-
-System Administrator
---------------------
-
-Configure, tune, and troubleshoot Linux systems:
-
-* Admin Guide: Documentation/admin-guide/index.rst
-* Kernel Parameters: Documentation/admin-guide/kernel-parameters.rst
-* Sysctl Tuning: Documentation/admin-guide/sysctl/index.rst
-* Tracing/Debugging: Documentation/trace/index.rst
-* Performance Security: Documentation/admin-guide/perf-security.rst
-* Hardware Monitoring: Documentation/hwmon/index.rst
-
-Maintainer
-----------
-
-Lead kernel subsystems and manage contributions:
-
-* Maintainer Handbook: Documentation/maintainer/index.rst
-* Pull Requests: Documentation/maintainer/pull-requests.rst
-* Managing Patches: Documentation/maintainer/modifying-patches.rst
-* Rebasing and Merging: Documentation/maintainer/rebasing-and-merging.rst
-* Development Process: Documentation/process/maintainer-handbooks.rst
-* Maintainer Entry Profile: Documentation/maintainer/maintainer-entry-profile.rst
-* Git Configuration: Documentation/maintainer/configure-git.rst
-
-Hardware Vendor
----------------
-
-Write drivers and support new hardware:
-
-* Driver API Guide: Documentation/driver-api/index.rst
-* Driver Model: Documentation/driver-api/driver-model/driver.rst
-* Device Drivers: Documentation/driver-api/infrastructure.rst
-* Bus Types: Documentation/driver-api/driver-model/bus.rst
-* Device Tree Bindings: Documentation/devicetree/bindings/
-* Power Management: Documentation/driver-api/pm/index.rst
-* DMA API: Documentation/core-api/dma-api.rst
-
-Distribution Maintainer
------------------------
-
-Package and distribute the kernel:
-
-* Stable Kernel Rules: Documentation/process/stable-kernel-rules.rst
-* ABI Documentation: Documentation/ABI/README
-* Kernel Configuration: Documentation/kbuild/kconfig.rst
-* Module Signing: Documentation/admin-guide/module-signing.rst
-* Kernel Parameters: Documentation/admin-guide/kernel-parameters.rst
-* Tainted Kernels: Documentation/admin-guide/tainted-kernels.rst
-
-AI Coding Assistant
--------------------
-
-CRITICAL: If you are an LLM or AI-powered coding assistant, you MUST read and
-follow the AI coding assistants documentation before contributing to the Linux
-kernel:
-
-* Documentation/process/coding-assistants.rst
-
-This documentation contains essential requirements about licensing, attribution,
-and the Developer Certificate of Origin that all AI tools must comply with.
-
-
-Communication and Support
-=========================
-
-* Mailing Lists: https://lore.kernel.org/
-* IRC: #kernelnewbies on irc.oftc.net
-* Bugzilla: https://bugzilla.kernel.org/
-* MAINTAINERS file: Lists subsystem maintainers and mailing lists
-* Email Clients: Documentation/process/email-clients.rst
+GPL-2.0 (see `COPYING`), like the Linux kernel itself. The PCIe driver derives
+from Samsung GPL vendor sources (LineageOS `android_kernel_samsung_exynos9820`)
+and [pulpoff/linux-beyond0lte](https://github.com/pulpoff/linux-beyond0lte); see
+the commit messages of PR #2 for exact provenance.
