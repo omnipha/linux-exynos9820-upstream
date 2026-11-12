@@ -48,6 +48,10 @@
 	charge-full-design-microamp-hours = <4000000>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &usbdrd_dwc3 {
 	dr_mode = "peripheral";
 	maximum-speed = "high-speed";
