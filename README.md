@@ -29,18 +29,25 @@ The detailed Wi-Fi bring-up evidence is in [issue #1](https://github.com/omnipha
 
 ## Building
 
-The source is based on Linux 7.2-rc2, via the [`exynos9820-7.2-rc2` branch](https://github.com/chiffathefox/exynos-9820-mainline-linux/tree/exynos9820-7.2-rc2). An ARM64 image, modules and device tree were previously built with Clang 17 for the tested commit. This is a kernel source tree, not a complete bootable image.
+The source is based on Linux 7.2-rc2, via the [`exynos9820-7.2-rc2` branch](https://github.com/chiffathefox/exynos-9820-mainline-linux/tree/exynos9820-7.2-rc2). This is a kernel source tree, not a complete bootable image.
 
-Example cross-build with Clang/LLVM 17 and the usual kernel build dependencies:
+`arch/arm64/configs/beyond2lte_defconfig` is a minimal defconfig, generated with `make savedefconfig` from the configuration of a unified kernel built from this tree at commit `9267a2137168`. That build, and the verification of the defconfig, used Ubuntu clang/LLD 17.0.6 (`LLVM=-17`); regenerating the configuration with `make O=out ARCH=arm64 LLVM=-17 beyond2lte_defconfig` reproduced the built configuration exactly, apart from `CONFIG_LOCALVERSION` (the built kernel carried a private local version string, which is not part of the defconfig). The defconfig keeps the tested base-kernel settings — display (`CONFIG_DRM_SIMPLEDRM=y`) and touch (`CONFIG_TOUCHSCREEN_S6SY761=y`) built in — and adds the WLAN pieces as modules or built-ins (`CONFIG_PCIE_EXYNOS9820=m`, `CONFIG_BRCMFMAC=m`, `CONFIG_BRCMFMAC_PCIE=y`).
+
+Cross-build with Clang/LLVM 17 and the usual kernel build dependencies:
 
 ```sh
 git clone https://github.com/omnipha/linux-samsung-s10-exynos9820.git
 cd linux-samsung-s10-exynos9820
-make O=out ARCH=arm64 LLVM=-17 defconfig
+make O=out ARCH=arm64 LLVM=-17 beyond2lte_defconfig
 make -j"$(nproc)" O=out ARCH=arm64 LLVM=-17 Image modules dtbs
+make O=out ARCH=arm64 LLVM=-17 INSTALL_MOD_PATH="$PWD/out/staging" modules_install
 ```
 
-The S10+ device tree is `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`. On the merged tree we rechecked `defconfig`, that device-tree target, and compilation of the Exynos PCIe and brcmfmac PCIe objects. This example has not been validated as a complete, reproducible phone installation; it does not by itself reproduce the custom boot environment used for the hardware test.
+The S10+ device tree is `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`; the Galaxy S10 tree `exynos9820-beyond1lte.dtb` is built alongside it but has not been verified on hardware. The kernel is `out/arch/arm64/boot/Image`. `modules_install` places the modules in `out/staging/lib/modules/<kernel release>/`, zstd-compressed (`CONFIG_MODULE_COMPRESS_ZSTD=y`), and runs `depmod`; copy that directory to `/lib/modules/` on the target root filesystem. The install step was run for the built kernel with a relative `INSTALL_MOD_PATH`; the exact command above was not re-run for this README.
+
+Host tools used by the build: Ubuntu clang, LLD and llvm tools 17.0.6 (`clang-17`, `ld.lld-17`), flex, bison, bc, pahole for BTF (`CONFIG_DEBUG_INFO_BTF=y`) and the standard kmod `depmod`. The built modules are zstd-compressed; decompression uses the kernel's own zstd support (`CONFIG_MODULE_DECOMPRESS=y`), not host zstd.
+
+The unified kernel built from this configuration compiled through with Ubuntu clang/LLD 17.0.6 (ARM64 `Image`, `dtbs`, and the WLAN/PCIe modules linked); it has not been booted on a device in this configuration. For comparison, the configuration of the earlier base kernel built with Alpine clang 23.1.2 differs from the regenerated `beyond2lte_defconfig` configuration in the WLAN symbols above, `CONFIG_LOCALVERSION`, and symbols that Kconfig derives from the compiler (version and capability checks such as `CONFIG_CLANG_VERSION`, `CONFIG_CC_HAS_COUNTED_BY` and `CONFIG_ARM64_LSUI`); all other symbols match. This does not show whether the compiler or the configuration relates to the earlier wrong rootfs reads in [issue #6](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/6), and no cause is claimed.
 
 ## Getting involved
 
