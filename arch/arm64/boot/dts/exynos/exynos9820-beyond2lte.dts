@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "exynos9820-common.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Samsung Galaxy S10+ (SM-G975F)";
@@ -81,7 +82,53 @@
 	};
 };
 
+&usi_uart_bt {
+	status = "okay";
+};
+
+&serial1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_bus>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4329-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_en &bt_wake &bt_hostwake>;
+		shutdown-gpios = <&gpm8 0 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpg2 0 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gpa2>;
+		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "host-wakeup";
+	};
+};
+
+&pinctrl_alive {
+	bt_hostwake: bt-hostwake-pins {
+		samsung,pins = "gpa2-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_cmgp {
+	bt_en: bt-en-pins {
+		samsung,pins = "gpm8-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
 &pinctrl_peric0 {
+	bt_wake: bt-wake-pins {
+		samsung,pins = "gpg2-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	wlan_en: wlan-en-pins {
 		samsung,pins = "gpg0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;

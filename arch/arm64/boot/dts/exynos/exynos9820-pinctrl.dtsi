@@ -103,6 +103,13 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
+	uart1_bus: uart1-bus-pins {
+		samsung,pins = "gpq0-3", "gpq0-2", "gpq0-1", "gpq0-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
+	};
 };
 
 &pinctrl_aud {
