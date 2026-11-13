@@ -54,6 +54,28 @@ The stock S10+ DTBO describes `fimc-is-2l4@10` at `reg = <0x10>` on `hsi2c0` (`0
 
 The S10 reference provides [s5k-cis.c](https://github.com/butztill/s10-linux/blob/d8135b2465b3a9f1c0e7f1f6be71451ad185b303/drivers/s10-camera-v4l2/s5k-cis.c) and [exynos9820-csis.c](https://github.com/butztill/s10-linux/blob/d8135b2465b3a9f1c0e7f1f6be71451ad185b303/drivers/s10-camera-v4l2/exynos9820-csis.c). Its external sensor tables and loader require separate validation on S10+.
 
+## Camera power (rear main, S5K2L4)
+
+Source: stock overlay 09 (`ro.boot.dtbo_idx` = 9) for the regulators, and the Samsung 4.14 driver `fimc-is-device-module-2l4.c` (LineageOS commit `4bcfb0263b21`) for the order. This is stock data, not a voltage measurement on this unit.
+
+Camera PMIC `s2mpb03_pmic@56` (`samsung,s2mpb03pmic`, I2C `0x56`); its parent bus is not resolved in the overlay:
+
+| LDO | Name | Voltage |
+| --- | --- | --- |
+| ldo1 | `VDDD_1.0V_CAM` | 1.05 V |
+| ldo2 | `VDDQ_1.1V_CAM` | 1.1 V |
+| ldo3 | `VDDIO_1.8V_CAM` | 1.8 V |
+| ldo4 | `VDDD_RET_1.0V_CAM` | 0.7-1.025 V range |
+| ldo5 | `VDDA_2.4V_CAM` | 2.4 V |
+| ldo6 | `VDDA_2.8V_CAM` | 2.8 V |
+| ldo7 | `VDD_VM_2.8V_OIS` | 2.8 V (OIS only) |
+
+Autofocus supply `VDDAF_COMMON_CAM` is `s2mpb02-ldo14` at 3.3 V, on the other PMIC.
+
+Stock power-on order for the 2L4: reset low; `VDDD_RET` set to 1.025 V; `VDDA_2.8V`; `VDDA_2.4V`; `VDDD_1.0V`; `VDDAF_COMMON`; `VDDIO_1.8V`; `VDDQ_1.1V` (1 ms); OIS supply; I2C pins; MCLK (1.5 ms); reset high (3 ms). Stock power-off runs the reverse. Retention mode drops `VDDD_RET` to 0.7 V.
+
+Caveats: the stock logs from this unit show `power_seq_id read is fail(-22)`, so the driver used its default sequence. The reference DTS for `beyond1lte` wires the same S2MPB03 names to the sensor (`retention-supply`, `avdd28-supply`, `avdd24-supply`, `core-supply`, `iovdd-supply`, `vddq-supply`). The S10+ PMIC parent bus and the real voltages at the sensor are still to be measured once the PMIC probes.
+
 ## Audio — [#17](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/17)
 
 Stock DT describes a CS47L93 at SPI2 (`0x10470000`, reset `gpg1-0`) and two CS35L40 amplifiers at I2C38 (`0x109a0000`) addresses `0x40` and `0x41`, resets `gph1-1` and `gph1-2`. The stock kernel on this unit read CS47L93 silicon revision 1 at `spi2.0` and then logged `BOOT_DONE`. Mainline registers both CS47L92 and CS47L93 under the component name `cs47l92-codec`, so that name is not evidence of a different part. The same logs identify both amplifiers as `Cirrus Logic CS35L41 (35a40), Revision: A0` at stock I2C addresses `11-0040` and `11-0041`. Their DT compatible string remains `cirrus,cs35l40`, which does not match the silicon ID. The reference [audio implementation](https://github.com/butztill/s10-linux/tree/d8135b2465b3a9f1c0e7f1f6be71451ad185b303/drivers/s10-abox-asoc) reports playback on `beyond1lte`; its `s10-abox-session` source warns that switching the AUD domain off after UAIF use can hang the system. The reference microphone card hard-codes the shared mainline component name `cs47l92-codec`. On this unit the compatible is `cirrus,cs47l93` and the stock probe reports CS47L93 rev 1, so the device type stays CS47L93.
