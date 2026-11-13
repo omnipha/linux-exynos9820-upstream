@@ -26,6 +26,7 @@ properties:
           - samsung,exynos5260-hsi2c    # Exynos5260
           - samsung,exynos7-hsi2c       # Exynos7
           - samsung,exynos8895-hsi2c
+          - samsung,exynos9820-hsi2c
           - samsung,exynosautov9-hsi2c
       - items:
           - enum:
@@ -63,6 +64,21 @@ properties:
       If specified, the bus operates in high-speed mode only if the
       clock-frequency is >= 1MHz.
 
+  samsung,fast-plus-mode:
+    type: boolean
+    description:
+      Use the vendor Fast-Plus setup at 1MHz: program fast-speed timings,
+      omit the high-speed master code, and start with only the master bit
+      set in the control register. Only supported by
+      samsung,exynos9820-hsi2c.
+
+  samsung,reset-before-trans:
+    type: boolean
+    description:
+      Reset the controller before a transfer when the transfer-status
+      master-state field is 0x6. Only supported by
+      samsung,exynos9820-hsi2c.
+
   clocks:
     minItems: 1
     items:
@@ -88,6 +104,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - samsung,exynos9820-hsi2c
               - samsung,exynosautov9-hsi2c
 
     then:
@@ -105,6 +122,17 @@ allOf:
       properties:
         clocks:
           maxItems: 1
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: samsung,exynos9820-hsi2c
+    then:
+      properties:
+        samsung,fast-plus-mode: false
+        samsung,reset-before-trans: false
 
 unevaluatedProperties: false
 

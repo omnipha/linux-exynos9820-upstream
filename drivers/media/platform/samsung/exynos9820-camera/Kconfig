@@ -91,3 +91,18 @@ config REGULATOR_S10_S2MPB03
 	  with regulators=0 to only identify the chip.
 
 	  This driver is a module named s10-s2mpb03.
+
+config REGULATOR_S10_S2MPB02
+	tristate "Samsung S2MPB02 camera sub-PMIC BUCK1 regulator"
+	depends on I2C && OF && REGULATOR
+	depends on m
+	select REGMAP_I2C
+	help
+	  I2C regulator driver for the Galaxy S10 S2MPB02 camera
+	  sub-PMIC. It manages BUCK1 only: from the observed initial
+	  state (selector 1.6 V) it writes the 1.3 V selector first and
+	  then enables the output, before registering the regulator.
+	  The device tree marks it regulator-boot-on and
+	  regulator-always-on so the regulator core keeps it on.
+
+	  This driver is a module named s10-s2mpb02.

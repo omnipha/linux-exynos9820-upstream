@@ -203,6 +203,9 @@ struct exynos5_i2c {
 	/* Controller operating frequency */
 	unsigned int		op_clock;
 
+	bool			fast_plus_mode;
+	bool			reset_before_trans;
+
 	/* Version of HS-I2C Hardware */
 	const struct exynos_hsi2c_variant *variant;
 };
@@ -246,8 +249,16 @@ static const struct exynos_hsi2c_variant exynos8895_hsi2c_data = {
 	.hw		= I2C_TYPE_EXYNOS8895,
 };
 
+static const struct exynos_hsi2c_variant exynos9820_hsi2c_data = {
+	.fifo_depth	= 16,
+	.hw		= I2C_TYPE_EXYNOSAUTOV9,
+};
+
 static const struct of_device_id exynos5_i2c_match[] = {
 	{
+		.compatible = "samsung,exynos9820-hsi2c",
+		.data = &exynos9820_hsi2c_data
+	}, {
 		.compatible = "samsung,exynos5-hsi2c",
 		.data = &exynos5250_hsi2c_data
 	}, {
@@ -268,6 +279,11 @@ static const struct of_device_id exynos5_i2c_match[] = {
 	}, {},
 };
 MODULE_DEVICE_TABLE(of, exynos5_i2c_match);
+
+static bool exynos5_i2c_is_exynos9820(const struct exynos5_i2c *i2c)
+{
+	return i2c->variant == &exynos9820_hsi2c_data;
+}
 
 static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
 {
@@ -318,6 +334,13 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 	 * In general case, we don't need to control timing_s1 and timing_s2.
 	 */
 	if (i2c->variant->hw == I2C_TYPE_EXYNOSAUTOV9) {
+		if (exynos5_i2c_is_exynos9820(i2c) &&
+		    (!i2c->op_clock || clkin / 16 < i2c->op_clock)) {
+			dev_err(i2c->dev, "%s clock set-up failed\n",
+				hs_timings ? "HS" : "FS");
+			return -EINVAL;
+		}
+
 		div = ((clkin / (16 * i2c->op_clock)) - 1);
 		i2c_timing_s3 = div << 16;
 		if (hs_timings)
@@ -440,7 +463,8 @@ static int exynos5_hsi2c_clock_setup(struct exynos5_i2c *i2c)
 	/* always set Fast Speed timings */
 	int ret = exynos5_i2c_set_timing(i2c, false);
 
-	if (ret < 0 || i2c->op_clock < I2C_MAX_FAST_MODE_PLUS_FREQ)
+	if (ret < 0 || i2c->op_clock < I2C_MAX_FAST_MODE_PLUS_FREQ ||
+	    i2c->fast_plus_mode)
 		return ret;
 
 	return exynos5_i2c_set_timing(i2c, true);
@@ -454,16 +478,18 @@ static void exynos5_i2c_init(struct exynos5_i2c *i2c)
 {
 	u32 i2c_conf = readl(i2c->regs + HSI2C_CONF);
 	u32 i2c_timeout = readl(i2c->regs + HSI2C_TIMEOUT);
+	u32 i2c_ctl = HSI2C_MASTER;
 
 	/* Clear to disable Timeout */
 	i2c_timeout &= ~HSI2C_TIMEOUT_EN;
 	writel(i2c_timeout, i2c->regs + HSI2C_TIMEOUT);
 
-	writel((HSI2C_FUNC_MODE_I2C | HSI2C_MASTER),
-					i2c->regs + HSI2C_CTL);
+	if (!i2c->fast_plus_mode)
+		i2c_ctl |= HSI2C_FUNC_MODE_I2C;
+	writel(i2c_ctl, i2c->regs + HSI2C_CTL);
 	writel(HSI2C_TRAILING_COUNT, i2c->regs + HSI2C_TRAILIG_CTL);
 
-	if (i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ) {
+	if (i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ && !i2c->fast_plus_mode) {
 		writel(HSI2C_MASTER_ID(MASTER_ID(i2c->adap.nr)),
 					i2c->regs + HSI2C_ADDR);
 		i2c_conf |= HSI2C_HS_MODE;
@@ -746,7 +772,7 @@ static void exynos5_i2c_message_start(struct exynos5_i2c *i2c, int stop)
 
 	i2c_addr = HSI2C_SLV_ADDR_MAS(i2c->msg->addr);
 
-	if (i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ)
+	if (i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ && !i2c->fast_plus_mode)
 		i2c_addr |= HSI2C_MASTER_ID(MASTER_ID(i2c->adap.nr));
 
 	writel(i2c_addr, i2c->regs + HSI2C_ADDR);
@@ -844,6 +870,11 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	ret = clk_enable(i2c->clk);
 	if (ret)
 		goto err_pclk;
+
+	if (i2c->reset_before_trans) {
+		if ((readl(i2c->regs + HSI2C_TRANS_STATUS) & 0xf) == 0x6)
+			exynos5_i2c_reset(i2c);
+	}
 
 	for (i = 0; i < num; ++i) {
 		ret = exynos5_i2c_xfer_msg(i2c, msgs + i, i + 1 == num);
@@ -951,6 +982,14 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c->variant = of_device_get_match_data(&pdev->dev);
+
+	if (exynos5_i2c_is_exynos9820(i2c)) {
+		i2c->fast_plus_mode =
+			i2c->op_clock >= I2C_MAX_FAST_MODE_PLUS_FREQ &&
+			of_property_read_bool(np, "samsung,fast-plus-mode");
+		i2c->reset_before_trans =
+			of_property_read_bool(np, "samsung,reset-before-trans");
+	}
 
 	ret = exynos5_hsi2c_clock_setup(i2c);
 	if (ret)

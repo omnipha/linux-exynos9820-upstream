@@ -288,4 +288,4 @@ static struct i2c_driver pb03_driver = {
 };
 module_i2c_driver(pb03_driver);
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("S10 S2MPB03 second camera-supply bring-up (read-only by default)");
+MODULE_DESCRIPTION("Samsung S2MPB03 camera PMIC regulator");

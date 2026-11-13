@@ -7,6 +7,7 @@ The original S10 port [butztill/s10-linux](https://github.com/butztill/s10-linux
 ## Status measured on this device (2026-11-13)
 
 - Bluetooth: the controller came up and a scan found 40 devices after boot. PR [#23](https://github.com/omnipha/linux-samsung-s10-exynos9820/pull/23), issue [#15](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/15).
+- Camera (S5K2L4 / CSIS0 raw capture): 2016×1512 BA10 raw capture functional over mainline V4L2. Validated across exposure/gain sweep (exposure 16..12000, gain 32..512) with light response measured against illuminated target. S2MPB02 BUCK1 persistent kernel regulator driver (s10-s2mpb02) implemented to manage the 1.3 V rail. Issue [#16](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/16).
 - Phosh/Phoc 0.58: with simple-framebuffer output `Unknown-1` at 1440×3040 and scale 3, `wlr-randr --output Unknown-1 --transform 90` rotated the UI. The owner confirmed touch still hit the intended targets; `--transform normal` restored the original orientation. Automatic rotation remains unavailable until an orientation provider exists. Reboot persistence was not tested.
 - No sound card (`/proc/asound/cards`), `/dev/video*`, `/dev/media*`, backlight device, IIO sensor, GNSS device or NFC class device was exposed in that boot. `CONFIG_GNSS=y` and `CONFIG_SPI_SPIDEV=y`, but neither proves a device is bound.
 
@@ -15,6 +16,10 @@ The original S10 port [butztill/s10-linux](https://github.com/butztill/s10-linux
 The stock S10+ DTBO describes `fimc-is-2l4@10` at `reg = <0x10>` on `hsi2c0` (`0x10860000`); reset is `gpg2-6` and MCLK is `gpc1-4`. The associated `fimc-is_sensor_2l4@20` node names sensor channel 0. No camera lane count was established from that stock sensor node. The four-lane camera graph in the reference DTS is for `beyond1lte` and must be verified here.
 
 The S10 reference provides [s5k-cis.c](https://github.com/butztill/s10-linux/blob/d8135b2465b3a9f1c0e7f1f6be71451ad185b303/drivers/s10-camera-v4l2/s5k-cis.c) and [exynos9820-csis.c](https://github.com/butztill/s10-linux/blob/d8135b2465b3a9f1c0e7f1f6be71451ad185b303/drivers/s10-camera-v4l2/exynos9820-csis.c). Its external sensor tables and loader require separate validation on S10+.
+
+An experimental, uncommitted port based on `b74704a41343` booted on this S10+ on 2026-11-13. CSIS registered `/dev/video0` but reported that it was waiting for the sensor; the S2MPB03 at `0x56` responded with ID `0x02` and was left in read-only identification mode. The sensor driver failed with `-ENOENT` because its runtime table was unavailable during the early initramfs probe; this was not a sensor chip-ID read. No raw frame was captured, so lane count, sensor supply wiring and streaming remain unverified.
+
+A subsequent reboot after changing the initramfs did not regain USB or WLAN access; no kernel journal from that attempt was available. The owner reported a visible desktop, then recovered via Safe Mode. The previously verified Bluetooth boot entry was restored; the current default has USB SSH, WLAN, Phosh, framebuffer and the touch driver present, three boot entries, and no observed EXT4 errors. The cause of the failed reboot attempt remains unknown.
 
 ## Audio — [#17](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/17)
 

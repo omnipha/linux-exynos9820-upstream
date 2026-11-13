@@ -5,3 +5,4 @@ obj-$(CONFIG_S10_CIS_CLOCK) += s10-cis-clock.o
 obj-$(CONFIG_VIDEO_EXYNOS9820_CSIS) += exynos9820-csis.o
 obj-$(CONFIG_VIDEO_S5K_CIS) += s5k-cis.o
 obj-$(CONFIG_REGULATOR_S10_S2MPB03) += s10-s2mpb03.o
+obj-$(CONFIG_REGULATOR_S10_S2MPB02) += s10-s2mpb02.o

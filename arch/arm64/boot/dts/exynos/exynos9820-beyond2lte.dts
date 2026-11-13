@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "exynos9820-common.dtsi"
+#include <dt-bindings/clock/exynos9820.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
@@ -29,6 +30,16 @@
 				width-mm = <70>;
 				height-mm = <147>;
 			};
+		};
+	};
+
+	reserved-memory {
+		ramoops@fd910000 {
+			compatible = "ramoops";
+			reg = <0x0 0xfd910000 0x200000>;
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			pmsg-size = <0x40000>;
 		};
 	};
 
@@ -118,6 +129,13 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
+
+	s10_pmic_i2c: s10-pmic-i2c {
+		samsung,pins = "gpm6-0", "gpm7-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
+	};
 };
 
 &pinctrl_peric0 {
@@ -134,5 +152,285 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <3>;
+	};
+
+};
+
+&pinctrl_peric1 {
+	s10_main_i2c_idle: s10-main-i2c-idle {
+		samsung,pins = "gpc0-0", "gpc0-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	s10_main_i2c_active: s10-main-i2c-active {
+		samsung,pins = "gpc0-0", "gpc0-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
+	};
+
+	s10_sub_pmic_i2c: s10-sub-pmic-i2c {
+		samsung,pins = "gpp6-0", "gpp6-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
+	};
+
+	s10_mclk0_idle: s10-mclk0-idle {
+		samsung,pins = "gpc1-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-val = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	};
+
+	s10_mclk0_active: s10-mclk0-active {
+		samsung,pins = "gpc1-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
+	};
+};
+
+&soc {
+	camera_isppre_hold: camera-isppre-hold {
+		compatible = "samsung,exynos9820-isppre-hold-test";
+		power-domains = <&pd_isppre>;
+	};
+
+	camera_clock_isppre: clock-controller@17000000 {
+		compatible = "samsung,exynos9820-isppre-clock-test";
+		reg = <0x17000000 0x8000>;
+		#clock-cells = <1>;
+		clock-names = "bus";
+		clocks = <&cmu_top CLK_DOUT_CMU_ISPPRE_BUS>;
+		power-domains = <&pd_isppre>;
+	};
+
+	camera_clock_cis0: camera-clock@1a243008 {
+		compatible = "samsung,exynos9820-cis-clock-test";
+		reg = <0x1a243008 0x4>;
+		#clock-cells = <0>;
+		clocks = <&cmu_top CLK_DOUT_CMU_CIS_CLK0>;
+		pinctrl-names = "default", "active";
+		pinctrl-0 = <&s10_mclk0_idle>;
+		pinctrl-1 = <&s10_mclk0_active>;
+	};
+
+	camera_csis0: camera-csis@17030000 {
+		compatible = "samsung,exynos9820-csis";
+		reg = <0x17030000 0x1000>,
+		      <0x170e0000 0x100>,
+		      <0x17020500 0x4>,
+		      <0x19160b00 0x500>,
+		      <0x170a0000 0x500>;
+		reg-names = "csis", "dma-top", "phy-reset", "phy", "dma";
+		interrupts = <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csis", "dma";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		samsung,pmu-phy-offset = <0x70c>;
+		samsung,phy-reset-bit = <0>;
+		samsung,phy-dc-combo;
+		power-domains = <&pd_isppre>;
+		clock-names = "csis", "dma", "mmu", "bus";
+		clocks = <&camera_clock_isppre 6>,
+			 <&camera_clock_isppre 4>,
+			 <&camera_clock_isppre 5>,
+			 <&cmu_top CLK_DOUT_CMU_ISPPRE_BUS>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				csis0_ep: endpoint {
+					remote-endpoint = <&s5k2l4_ep>;
+					data-lanes = <1 2 3 4>;
+				};
+			};
+		};
+	};
+
+	usi_cmgp1: usi@15d300c0 {
+		compatible = "samsung,exynos850-usi";
+		reg = <0x15d300c0 0x20>;
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clock-names = "pclk", "ipclk";
+		clocks = <&cmu_cmgp CLK_GOUT_CMGP_USI_CMGP1_PCLK>,
+			 <&cmu_cmgp CLK_GOUT_CMGP_USI_CMGP1_IPCLK>;
+		samsung,sysreg = <&sysreg_cmgp 0x2010>;
+	};
+
+	usi_sub_pmic: usi@109200c0 {
+		compatible = "samsung,exynos850-usi";
+		reg = <0x109200c0 0x20>;
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clock-names = "pclk", "ipclk";
+		clocks = <&cmu_peric1 CLK_GOUT_PERIC1_USI10_USI_PCLK>,
+			 <&cmu_peric1 CLK_GOUT_PERIC1_USI10_USI_IPCLK>;
+		samsung,sysreg = <&sysreg_peric1 0x1038>;
+		samsung,mode = <USI_MODE_I2C>;
+		samsung,clkreq-on;
+		status = "okay";
+
+		hsi2c_sub_pmic: i2c@10920000 {
+			compatible = "samsung,exynos9820-hsi2c";
+			reg = <0x10920000 0xc0>;
+			clock-names = "hsi2c", "hsi2c_pclk";
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_USI10_USI_IPCLK>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_USI10_USI_PCLK>;
+			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&s10_sub_pmic_i2c>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clock-frequency = <100000>;
+			status = "okay";
+
+			s2mpb02: pmic@59 {
+				compatible = "samsung,s2mpb02-camera-test";
+				reg = <0x59>;
+
+				regulators {
+					s2mpb02_buck1: s2mpb02-buck1 {
+						regulator-name = "S2MPB02_BUCK1";
+						regulator-min-microvolt = <1300000>;
+						regulator-max-microvolt = <1300000>;
+						regulator-boot-on;
+						regulator-always-on;
+					};
+				};
+			};
+		};
+	};
+
+	usi0: usi@108600c0 {
+		compatible = "samsung,exynos850-usi";
+		reg = <0x108600c0 0x20>;
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clock-names = "pclk", "ipclk";
+		clocks = <&cmu_peric1 CLK_GOUT_PERIC1_I2C_CAM0_PCLK>,
+			 <&cmu_peric1 CLK_GOUT_PERIC1_I2C_CAM0_IPCLK>;
+		samsung,sysreg = <&sysreg_peric1 0x1008>;
+	};
+};
+
+&usi_cmgp1 {
+	samsung,mode = <USI_MODE_I2C>;
+	samsung,clkreq-on;
+	status = "okay";
+
+	hsi2c_cmgp1: i2c@15d30000 {
+		compatible = "samsung,exynos9820-hsi2c";
+		reg = <0x15d30000 0xc0>;
+		clock-names = "hsi2c", "hsi2c_pclk";
+		clocks = <&cmu_cmgp CLK_GOUT_CMGP_USI_CMGP1_IPCLK>,
+			 <&cmu_cmgp CLK_GOUT_CMGP_USI_CMGP1_PCLK>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s10_pmic_i2c>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-frequency = <100000>;
+		status = "okay";
+
+		s2mpb03: pmic@56 {
+			compatible = "samsung,s2mpb03-camera-test";
+			reg = <0x56>;
+
+			regulators {
+				s2mpb03_ldo3: s2mpb03-ldo3 {
+					regulator-name = "VDDIO_1.8V_CAM";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				s2mpb03_ldo1: s2mpb03-ldo1 {
+					regulator-name = "VDDD_1.0V_CAM";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+				};
+
+				s2mpb03_ldo2: s2mpb03-ldo2 {
+					regulator-name = "VDDQ_1.1V_CAM";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+				};
+
+				s2mpb03_ldo4: s2mpb03-ldo4 {
+					regulator-name = "VDDD_RET_1.0V_CAM";
+					regulator-min-microvolt = <1025000>;
+					regulator-max-microvolt = <1025000>;
+				};
+
+				s2mpb03_ldo5: s2mpb03-ldo5 {
+					regulator-name = "VDDA_2.4V_CAM";
+					regulator-min-microvolt = <2400000>;
+					regulator-max-microvolt = <2400000>;
+				};
+
+				s2mpb03_ldo6: s2mpb03-ldo6 {
+					regulator-name = "VDDA_2.8V_CAM";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+			};
+		};
+	};
+};
+
+&usi0 {
+	samsung,mode = <USI_MODE_I2C>;
+	status = "okay";
+
+	hsi2c_cam0: i2c@10860000 {
+		compatible = "samsung,exynos9820-hsi2c";
+		reg = <0x10860000 0xc0>;
+		clock-names = "hsi2c", "hsi2c_pclk";
+		clocks = <&cmu_peric1 CLK_GOUT_PERIC1_I2C_CAM0_IPCLK>,
+			 <&cmu_peric1 CLK_GOUT_PERIC1_I2C_CAM0_PCLK>;
+		interrupts = <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default", "camera-on";
+		pinctrl-0 = <&s10_main_i2c_idle>;
+		pinctrl-1 = <&s10_main_i2c_active>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-frequency = <1000000>;
+		samsung,fast-plus-mode;
+		samsung,reset-before-trans;
+		status = "okay";
+
+		s5k2l4: sensor@10 {
+			compatible = "samsung,s5k2l4";
+			reg = <0x10>;
+			reset-gpios = <&gpg2 6 GPIO_ACTIVE_LOW>;
+			clocks = <&camera_clock_cis0>;
+			clock-names = "mclk";
+			retention-supply = <&s2mpb03_ldo4>;
+			avdd28-supply = <&s2mpb03_ldo6>;
+			avdd24-supply = <&s2mpb03_ldo5>;
+			core-supply = <&s2mpb03_ldo1>;
+			iovdd-supply = <&s2mpb03_ldo3>;
+			vddq-supply = <&s2mpb03_ldo2>;
+			orientation = <1>;
+			rotation = <270>;
+
+			port {
+				s5k2l4_ep: endpoint {
+					remote-endpoint = <&csis0_ep>;
+					data-lanes = <1 2 3 4>;
+					link-frequencies = /bits/ 64 <923000000 676000000>;
+				};
+			};
+		};
 	};
 };
