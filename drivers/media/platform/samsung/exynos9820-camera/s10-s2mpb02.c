@@ -58,7 +58,6 @@ static const struct regulator_ops pb02_buck1_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
 };
 
 static const struct regulator_desc pb02_buck1_desc = {
@@ -97,16 +96,23 @@ static void pb02_unready(void *unused)
 int s10_s2mpb02_buck1_require(struct device *consumer)
 {
 	struct device_link *link;
+	struct device *supplier;
 	int ret = -EPROBE_DEFER;
 
 	mutex_lock(&pb02_lock);
-	if (pb02_ready_dev) {
-		link = device_link_add(consumer, pb02_ready_dev,
-				       DL_FLAG_AUTOREMOVE_CONSUMER);
-		if (link && READ_ONCE(link->status) == DL_STATE_CONSUMER_PROBE)
-			ret = 0;
-	}
+	supplier = pb02_ready_dev;
+	if (supplier)
+		get_device(supplier);
 	mutex_unlock(&pb02_lock);
+	if (!supplier)
+		return ret;
+
+	link = device_link_add(consumer, supplier, DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!link)
+		ret = -ENOMEM;
+	else if (READ_ONCE(link->status) == DL_STATE_CONSUMER_PROBE)
+		ret = 0;
+	put_device(supplier);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(s10_s2mpb02_buck1_require);
@@ -200,6 +206,15 @@ static int pb02_probe(struct i2c_client *client)
 	if (IS_ERR(rdev))
 		return dev_err_probe(dev, PTR_ERR(rdev),
 				     "failed to register BUCK1\n");
+
+	ret = regmap_read(pb02->map, PB02_REG_B1CTRL1, &c1);
+	ret = ret ?: regmap_read(pb02->map, PB02_REG_B1CTRL2, &c2);
+	if (ret || (c1 & PB02_BUCK1_ENABLE_MASK) != PB02_BUCK1_ENABLE_VAL ||
+	    c2 != PB02_LIVE_B1CTRL2)
+		return dev_err_probe(dev, ret ?: -EIO,
+				     "BUCK1 state changed by regulator core: %#04x/%#04x\n",
+				     c1, c2);
+	dev_info(dev, "BUCK1 registered, final state %#04x/%#04x\n", c1, c2);
 
 	ret = devm_add_action_or_reset(dev, pb02_unready, NULL);
 	if (ret)

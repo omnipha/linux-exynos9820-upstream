@@ -9,7 +9,7 @@ int s10_s2mpb02_buck1_require(struct device *consumer);
 #else
 static inline int s10_s2mpb02_buck1_require(struct device *consumer)
 {
-	return 0;
+	return -ENODEV;
 }
 #endif
 
