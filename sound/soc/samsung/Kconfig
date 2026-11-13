@@ -148,4 +148,35 @@ config SND_SOC_SAMSUNG_MIDAS_WM1811
 	help
 	  Say Y if you want to add support for SoC audio on the Midas boards.
 
+config SND_SOC_S10_ABOX_SESSION
+	bool "Galaxy S10 ABOX bring-up session (AUD domain held)"
+	depends on (ARCH_EXYNOS && ARM64) || COMPILE_TEST
+	depends on OF && PM && PM_GENERIC_DOMAINS && MFD_SYSCON
+	help
+	  Powers the Exynos 9820 AUD domain once and holds it until reboot.
+	  A genpd power-off after UAIF activity hangs the SoC, so this module
+	  cannot be unloaded and blocks system suspend while bound. It needs
+	  the AUD test device with its power domain and top clock described.
+	  Load it before the speaker and microphone modules.
+
+config SND_SOC_S10_ABOX
+	tristate "Galaxy S10 ABOX firmware-free speaker playback"
+	depends on SND_SOC_S10_ABOX_SESSION
+	depends on I2C
+	select SND_SOC_CS35L41_I2C
+	help
+	  RDMA0 -> SIFS1 -> UAIF1 playback to the two CS35L40 amplifiers.
+	  Requires the ABOX session module, which must be loaded first and
+	  keeps the AUD domain powered.
+
+config SND_SOC_S10_MIC
+	tristate "Galaxy S10 CS47L93 microphone capture (experimental)"
+	depends on SND_SOC_S10_ABOX_SESSION
+	depends on MFD_CS47L92 && MFD_MADERA_SPI
+	select SND_SOC_CS47L92
+	help
+	  Experimental CS47L93 AIF1 -> UAIF0 -> NSRC0 -> WDMA1 capture.
+	  Independent of the speaker card. Requires the ABOX session module
+	  to already hold the AUD domain on.
+
 endif #SND_SOC_SAMSUNG
