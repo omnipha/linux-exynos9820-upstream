@@ -97,6 +97,9 @@
 #define S6SY761_TS_STATUS_SIZE		5
 #define S6SY761_MAX_FINGERS		10
 
+#define S6SY761_POWER_ON_MS		140
+#define S6SY761_POWER_CYCLE_DELAY_MS	50
+
 #define S6SY761_DEV_NAME	"s6sy761"
 
 enum s6sy761_regulators {
@@ -330,7 +333,7 @@ static int s6sy761_power_on(struct s6sy761_data *sdata)
 	if (ret)
 		return ret;
 
-	msleep(140);
+	msleep(S6SY761_POWER_ON_MS);
 
 	/* double check whether the touch is functional */
 	ret = i2c_smbus_read_i2c_block_data(sdata->client,
@@ -362,6 +365,25 @@ static int s6sy761_power_on(struct s6sy761_data *sdata)
 					S6SY761_MASK_TOUCH);
 	if (ret)
 		return ret;
+
+	return 0;
+}
+
+static int s6sy761_power_cycle(struct s6sy761_data *sdata)
+{
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(sdata->regulators),
+				    sdata->regulators);
+	if (ret)
+		return ret;
+
+	ret = regulator_bulk_disable(ARRAY_SIZE(sdata->regulators),
+				     sdata->regulators);
+	if (ret)
+		return ret;
+
+	msleep(S6SY761_POWER_CYCLE_DELAY_MS);
 
 	return 0;
 }
@@ -440,6 +462,10 @@ static int s6sy761_probe(struct i2c_client *client)
 	err = devm_regulator_bulk_get(&client->dev,
 				      ARRAY_SIZE(sdata->regulators),
 				      sdata->regulators);
+	if (err)
+		return err;
+
+	err = s6sy761_power_cycle(sdata);
 	if (err)
 		return err;
 
