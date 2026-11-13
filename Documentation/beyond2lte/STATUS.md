@@ -2,8 +2,6 @@
 
 Moved here from the repository README on 2026-11-13. The numbers below were measured on one SM-G975F and do not apply to other models.
 
-# Linux for Samsung Exynos 9820
-
 A community kernel tree for bringing Linux to Samsung Exynos 9820 devices, including the Galaxy S10 series. Our aim is to share tested code, report device support honestly, and work toward upstream Linux support.
 
 **Status: experimental, not a finished phone OS or an installation image.** The WLAN changes are in this repository's `main` branch; they have not been submitted to or accepted by the upstream Linux kernel.
@@ -92,7 +90,7 @@ The unified kernel built from this configuration compiled through with Ubuntu cl
 
 - Browse the [open issues](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues) for known problems and ongoing work.
 - Report hardware results with the exact model and variant, kernel commit, configuration, logs and what you tested. Please remove serial numbers, credentials, MAC/IP addresses and other personal data from public logs.
-- Contributions and corrections are welcome through GitHub issues and pull requests. For eventual Linux mainline submission, follow the [kernel contribution process](Documentation/process/submitting-patches.rst); merging here does not merge anything upstream.
+- Contributions and corrections are welcome through GitHub issues and pull requests. For eventual Linux mainline submission, follow the [kernel contribution process](../process/submitting-patches.rst); merging here does not merge anything upstream.
 
 There is no tested general-purpose installer or recovery guide yet. Bootloader and storage changes can make a device unbootable or erase data; do not flash images based only on this README. Confirm your exact device, backups and recovery path first.
 
@@ -102,4 +100,4 @@ This tree builds on [chiffathefox/exynos-9820-mainline-linux](https://github.com
 
 We thank [butztill/s10-linux](https://github.com/butztill/s10-linux) for openly sharing its Galaxy S10 (`beyond1lte`) bring-up work. Its [Linux 7.2-rc2 sources](https://github.com/butztill/s10-linux/tree/d8135b2465b3a9f1c0e7f1f6be71451ad185b303) are an important reference for our Bluetooth work and planned camera, audio, sensor-hub and NFC bring-up ([issues #15–#19](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues)). Results from that project do not establish support on our S10+ (`beyond2lte`) without testing here. When adapting code, we retain the original authorship, SPDX identifiers and applicable license terms. We welcome collaboration and sharing improvements across projects.
 
-Kernel licensing information is in [COPYING](COPYING) and [license-rules.rst](Documentation/process/license-rules.rst). The original general kernel introduction is preserved in [README](README).
+Kernel licensing information is in [COPYING](../../COPYING) and [license-rules.rst](../process/license-rules.rst). The original general kernel introduction is preserved in [README](../../README).
