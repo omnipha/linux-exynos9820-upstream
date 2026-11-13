@@ -1,0 +1,11 @@
+[Unit]
+Description=mb007 large console font 32x64
+After=systemd-vconsole-setup.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "/usr/sbin/setfont -C /dev/tty1 ter-u32n 2>/dev/null || /usr/bin/setfont -C /dev/tty1 ter-u32n; /usr/local/libexec/mb007-font --double"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

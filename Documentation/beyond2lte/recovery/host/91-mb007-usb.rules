@@ -1,0 +1,7 @@
+# Host: the generic pmOS gadget ID is also used by other phones.
+# Match the measured physical USB path as well; the service checks the pinned
+# SSH host key and beyond2lte identity before acknowledging the phone guard.
+# The add event can be followed by a rename/move event. Match both so the
+# dependency persists on the final device and is present when systemd marks
+# it ready; otherwise the auto-connect service is silently skipped.
+SUBSYSTEM=="net", ACTION=="add|move", DRIVERS=="?*", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="d001", ATTRS{serial}=="postmarketOS", ENV{ID_PATH}=="CHANGE_ME_USB_PATH", TAG+="systemd", ENV{SYSTEMD_WANTS}+="mb007-usb-autoconnect.service"

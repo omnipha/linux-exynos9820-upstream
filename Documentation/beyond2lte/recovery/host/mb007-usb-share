@@ -1,0 +1,36 @@
+#!/bin/sh
+# Host: share its current IPv4 uplink only with the verified mb007 USB
+# connection. Called by mb007-usb-autoconnect.service after pinned-key SSH.
+set -eu
+. /etc/default/mb007-usb
+expected_path=${MB007_USB_PATH:?set MB007_USB_PATH in /etc/default/mb007-usb}
+iface=
+for node in /sys/class/net/*; do
+    [ -e "$node" ] || continue
+    props=$(/usr/bin/udevadm info --query=property --path="$node" 2>/dev/null) || continue
+    printf '%s\n' "$props" | grep -Fxq 'ID_VENDOR_ID=18d1' || continue
+    printf '%s\n' "$props" | grep -Fxq 'ID_MODEL_ID=d001' || continue
+    printf '%s\n' "$props" | grep -Fxq 'ID_SERIAL_SHORT=postmarketOS' || continue
+    printf '%s\n' "$props" | grep -Fxq 'ID_USB_DRIVER=cdc_ncm' || continue
+    printf '%s\n' "$props" | grep -Fxq "ID_PATH=$expected_path" || continue
+    [ -z "$iface" ] || { echo 'multiple matching USB interfaces' >&2; exit 1; }
+    iface=${node##*/}
+done
+[ -n "$iface" ] || { echo 'matching USB interface unavailable' >&2; exit 1; }
+uplink=$(/usr/sbin/ip -4 route get 1.1.1.1 | /usr/bin/awk '{for(i=1;i<=NF;i++) if($i=="dev") {print $(i+1); exit}}')
+[ -n "$uplink" ] && [ "$uplink" != "$iface" ] && [ "$uplink" != lo ] || {
+    echo 'no independent IPv4 uplink' >&2; exit 1;
+}
+ipt=/usr/sbin/iptables
+# These dedicated chains have no other users; replace only their contents.
+$ipt -w 5 -N MB007_USB_FORWARD 2>/dev/null || $ipt -w 5 -S MB007_USB_FORWARD >/dev/null
+$ipt -w 5 -t nat -N MB007_USB_NAT 2>/dev/null || $ipt -w 5 -t nat -S MB007_USB_NAT >/dev/null
+$ipt -w 5 -F MB007_USB_FORWARD
+$ipt -w 5 -A MB007_USB_FORWARD -i "$iface" -o "$uplink" -s 172.16.42.1/32 -j ACCEPT
+$ipt -w 5 -A MB007_USB_FORWARD -i "$uplink" -o "$iface" -d 172.16.42.1/32 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+$ipt -w 5 -t nat -F MB007_USB_NAT
+$ipt -w 5 -t nat -A MB007_USB_NAT -s 172.16.42.1/32 -o "$uplink" -j MASQUERADE
+$ipt -w 5 -C FORWARD -j MB007_USB_FORWARD 2>/dev/null || $ipt -w 5 -I FORWARD 1 -j MB007_USB_FORWARD
+$ipt -w 5 -t nat -C POSTROUTING -j MB007_USB_NAT 2>/dev/null || $ipt -w 5 -t nat -I POSTROUTING 1 -j MB007_USB_NAT
+/usr/sbin/sysctl -w net.ipv4.ip_forward=1 >/dev/null
+printf 'mb007 forwarding: interface=%s uplink=%s source=172.16.42.1/32\n' "$iface" "$uplink"

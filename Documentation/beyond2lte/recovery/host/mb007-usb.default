@@ -1,0 +1,6 @@
+# Install as /etc/default/mb007-usb on the USB host.
+# udevadm info -q property -p /sys/class/net/<iface> | grep ID_PATH
+MB007_USB_PATH=CHANGE_ME_USB_PATH
+MB007_HOST_USER=CHANGE_ME_USER
+MB007_CLIENT_KEY=/home/CHANGE_ME_USER/.ssh/id_ed25519
+MB007_KNOWN_HOSTS=/home/CHANGE_ME_USER/.ssh/mb007-known-hosts

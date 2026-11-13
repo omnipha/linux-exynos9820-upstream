@@ -1,0 +1,10 @@
+[Unit]
+Description=mb007 USB SSH autoconnect and recovery guard acknowledgement
+After=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mb007-usb-autoconnect
+TimeoutStartSec=150
+StandardOutput=journal
+StandardError=journal
