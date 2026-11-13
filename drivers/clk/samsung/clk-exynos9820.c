@@ -783,22 +783,31 @@ static const struct samsung_cmu_info peric0_cmu_info __initconst = {
  */
 #define PLL_CON0_MUX_CLKCMU_PERIC1_BUS_USER					0x0100
 #define PLL_CON0_MUX_CLKCMU_PERIC1_UART_BT_USER					0x01c0
+#define PLL_CON0_MUX_CLKCMU_PERIC1_USI_I2C_USER					0x02e0
 #define PERIC1_CMU_PERIC1_CONTROLLER_OPTION					0x0800
 #define CLK_CON_DIV_DIV_CLK_PERIC1_UART_BT					0x1814
+#define CLK_CON_DIV_DIV_CLK_PERIC1_USI_I2C					0x1838
 #define CLK_CON_GAT_GOUT_BLK_PERIC1_UID_UART_BT_IPCLKPORT_IPCLK			0x2098
 #define CLK_CON_GAT_GOUT_BLK_PERIC1_UID_UART_BT_IPCLKPORT_PCLK			0x209c
+#define CLK_CON_GAT_GOUT_BLK_PERIC1_UID_USI17_I2C_IPCLKPORT_IPCLK		0x2110
+#define CLK_CON_GAT_GOUT_BLK_PERIC1_UID_USI17_I2C_IPCLKPORT_PCLK		0x2114
 
 static const unsigned long peric1_clk_regs[] __initconst = {
 	PLL_CON0_MUX_CLKCMU_PERIC1_BUS_USER,
 	PLL_CON0_MUX_CLKCMU_PERIC1_UART_BT_USER,
+	PLL_CON0_MUX_CLKCMU_PERIC1_USI_I2C_USER,
 	PERIC1_CMU_PERIC1_CONTROLLER_OPTION,
 	CLK_CON_DIV_DIV_CLK_PERIC1_UART_BT,
+	CLK_CON_DIV_DIV_CLK_PERIC1_USI_I2C,
 	CLK_CON_GAT_GOUT_BLK_PERIC1_UID_UART_BT_IPCLKPORT_IPCLK,
 	CLK_CON_GAT_GOUT_BLK_PERIC1_UID_UART_BT_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIC1_UID_USI17_I2C_IPCLKPORT_IPCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIC1_UID_USI17_I2C_IPCLKPORT_PCLK,
 };
 
 PNAME(mout_peric1_bus_user_p) = { "oscclk", "dout_cmu_peric1_bus" };
 PNAME(mout_peric1_uart_bt_user_p) = { "oscclk", "dout_cmu_peric1_ip" };
+PNAME(mout_peric1_usi_i2c_user_p) = { "oscclk", "dout_cmu_peric1_ip" };
 
 static const struct samsung_mux_clock peric1_mux_clks[] __initconst = {
 	MUX(CLK_MOUT_PERIC1_BUS_USER, "mout_peric1_bus_user",
@@ -806,11 +815,17 @@ static const struct samsung_mux_clock peric1_mux_clks[] __initconst = {
 	MUX(CLK_MOUT_PERIC1_UART_BT_USER, "mout_peric1_uart_bt_user",
 	    mout_peric1_uart_bt_user_p, PLL_CON0_MUX_CLKCMU_PERIC1_UART_BT_USER,
 	    4, 1),
+	MUX(CLK_MOUT_PERIC1_USI_I2C_USER, "mout_peric1_usi_i2c_user",
+	    mout_peric1_usi_i2c_user_p, PLL_CON0_MUX_CLKCMU_PERIC1_USI_I2C_USER,
+	    4, 1),
 };
 
 static const struct samsung_div_clock peric1_div_clks[] __initconst = {
 	DIV(CLK_DOUT_PERIC1_UART_BT, "dout_peric1_uart_bt",
 	    "mout_peric1_uart_bt_user", CLK_CON_DIV_DIV_CLK_PERIC1_UART_BT, 0,
+	    4),
+	DIV(CLK_DOUT_PERIC1_USI_I2C, "dout_peric1_usi_i2c",
+	    "mout_peric1_usi_i2c_user", CLK_CON_DIV_DIV_CLK_PERIC1_USI_I2C, 0,
 	    4),
 };
 
@@ -822,6 +837,13 @@ static const struct samsung_gate_clock peric1_gate_clks[] __initconst = {
 	GATE(CLK_GOUT_PERIC1_UART_BT_PCLK, "gout_peric1_uart_bt_pclk",
 	     "mout_peric1_bus_user",
 	     CLK_CON_GAT_GOUT_BLK_PERIC1_UID_UART_BT_IPCLKPORT_PCLK, 21, 0, 0),
+	GATE(CLK_GOUT_PERIC1_USI17_I2C_IPCLK, "gout_peric1_usi17_i2c_ipclk",
+	     "dout_peric1_usi_i2c",
+	     CLK_CON_GAT_GOUT_BLK_PERIC1_UID_USI17_I2C_IPCLKPORT_IPCLK, 21,
+	     CLK_SET_RATE_PARENT, 0),
+	GATE(CLK_GOUT_PERIC1_USI17_I2C_PCLK, "gout_peric1_usi17_i2c_pclk",
+	     "mout_peric1_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIC1_UID_USI17_I2C_IPCLKPORT_PCLK, 21, 0, 0),
 };
 
 static const struct samsung_cmu_info peric1_cmu_info __initconst = {
