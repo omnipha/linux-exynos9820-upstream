@@ -66,7 +66,7 @@ The reference [sensor service](https://github.com/butztill/s10-linux/tree/d8135b
 
 ## NFC — [#19](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/19)
 
-Stock DT calls the device `sec-nfc@27` on I2C20 (`0x108e0000`). Stock Android reports board revision 26 for this unit (read from a read-only ADB backup); stock overlay 09 covers revisions 26-255, so it is the matching overlay. There, enable is `gpp6-2` and firmware-mode is `gpp6-3`. Overlays 00-08 use other pins (PCAL6524 expander indices `0x0b`/`0x09` in 00-03). Overlay selection by the bootloader is inferred from the revision range, not observed. The S10 reference instead uses `samsung,s3fwrn5-i2c`; compatibility must be validated.
+Stock DT calls the device `sec-nfc@27` on I2C20 (`0x108e0000`). Stock Android reports board revision 26 for this unit (read from a read-only ADB backup); stock overlay 09 covers revisions 26-255, so it is the matching overlay. There, enable is `gpp6-2` and firmware-mode is `gpp6-3`. Overlays 00-08 use other pins (PCAL6524 expander indices `0x0b`/`0x09` in 00-03). Stock Android reported `ro.boot.dtbo_idx` = 9 (read-only ADB backup), so overlay 09 was the one selected on this unit. The S10 reference instead uses `samsung,s3fwrn5-i2c`; compatibility must be validated.
 
 ## Brightness — [#21](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/21)
 
