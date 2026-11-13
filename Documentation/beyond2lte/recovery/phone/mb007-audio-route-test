@@ -1,0 +1,189 @@
+#!/bin/sh
+set -eu
+
+here=$(cd "$(dirname "$0")" && pwd)
+route=${MB007_AUDIO_ROUTE:-$here/mb007-audio-route}
+root=$(mktemp -d)
+trap 'rm -rf "$root"' EXIT HUP INT TERM
+mkdir -p "$root/bin" "$root/state" "$root/dt/soc@0/abox-speaker-card" "$root/dt/soc@0/abox-mic-card"
+printf 'samsung,exynos9820\0samsung,beyond2lte\0' > "$root/dt/compatible"
+printf ' 0 [S10            ]: s10-abox - S10\n                      S10\n 1 [S10Mic         ]: s10-mic - S10Mic\n                      S10Mic\n' > "$root/cards"
+
+cat > "$root/bin/amixer" << 'FAKE'
+#!/bin/sh
+set -eu
+state=$FAKE_STATE
+card=
+mode=
+ctl=
+val=
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        -q) shift ;;
+        -c) card=$2; shift 2 ;;
+        sget) mode=get; ctl=$2; shift 2 ;;
+        sset) mode=set; ctl=$2; shift 2
+              [ "${1:-}" = -- ] && shift
+              val=$1; shift ;;
+        *) exit 2 ;;
+    esac
+done
+key=$(printf '%s_%s' "$card" "$ctl" | tr ' ' '_')
+printf '%s %s %s\n' "$mode" "$key" "$val" >> "$state/log"
+case $ctl in
+    'Bottom Digital PCM'|'Receiver Digital PCM'|'IN3L Digital'|'IN4L Digital') kind=gain; dflt=0.00dB ;;
+    'Bottom PCM Source'|'Receiver PCM Source') kind=enum; dflt=DSP ;;
+    'AIF1TX1 Input 1'|'AIF1TX2 Input 1') kind=enum; dflt=None ;;
+    *) exit 1 ;;
+esac
+if [ "$mode" = set ]; then
+    if [ -f "$state/fail-$key" ]; then
+        n=$(cat "$state/fail-$key")
+        if [ "$n" -gt 0 ]; then
+            echo $((n - 1)) > "$state/fail-$key"
+            exit 1
+        fi
+    fi
+    printf '%s\n' "$val" > "$state/val-$key"
+    exit 0
+fi
+cur=$(cat "$state/val-$key" 2>/dev/null || echo "$dflt")
+if [ "$kind" = gain ]; then
+    printf '  Mono: Playback 128 [67%%] [%s]\n' "$cur"
+else
+    printf "  Items: 'x'\n  Item0: '%s'\n" "$cur"
+fi
+FAKE
+chmod 0755 "$root/bin/amixer"
+
+PATH="$root/bin:$PATH"
+export PATH
+FAKE_STATE="$root/state"
+export FAKE_STATE
+MB007_AUDIO_CARDS="$root/cards"
+MB007_AUDIO_DT="$root/dt"
+MB007_AUDIO_READY="$root/ready"
+MB007_AUDIO_WAIT=2
+MB007_AUDIO_TRIES=3
+MB007_AUDIO_POLL=0
+MB007_AUDIO_SETTLE=1
+MB007_AUDIO_SPEAKER_DB=-12
+MB007_AUDIO_MIC_DB=-6
+export MB007_AUDIO_CARDS MB007_AUDIO_DT MB007_AUDIO_READY MB007_AUDIO_WAIT
+export MB007_AUDIO_TRIES MB007_AUDIO_POLL MB007_AUDIO_SETTLE MB007_AUDIO_SPEAKER_DB MB007_AUDIO_MIC_DB
+
+failures=0
+
+reset() {
+    rm -rf "$root/state" "$root/ready"
+    mkdir -p "$root/state"
+}
+
+expect() {
+    name=$1
+    want=$2
+    shift 2
+    rc=0
+    "$@" >/dev/null 2>&1 || rc=$?
+    if [ "$rc" -eq "$want" ]; then
+        echo "PASS: $name"
+    else
+        echo "FAIL: $name (exit $rc, wanted $want)" >&2
+        failures=$((failures + 1))
+    fi
+}
+
+check_val() {
+    name=$1
+    key=$2
+    want=$3
+    got=$(cat "$root/state/val-$key" 2>/dev/null || echo unset)
+    if [ "$got" = "$want" ]; then
+        echo "PASS: $name"
+    else
+        echo "FAIL: $name (got $got, wanted $want)" >&2
+        failures=$((failures + 1))
+    fi
+}
+
+reset
+expect "fresh boot applies route" 0 "$route"
+if [ -e "$root/ready" ]; then
+    echo "PASS: ready marker created"
+else
+    echo "FAIL: ready marker missing" >&2
+    failures=$((failures + 1))
+fi
+check_val "speaker bottom gain" S10_Bottom_Digital_PCM -12dB
+check_val "speaker receiver gain" S10_Receiver_Digital_PCM -12dB
+check_val "bottom source" S10_Bottom_PCM_Source ASP
+check_val "receiver source" S10_Receiver_PCM_Source ASP
+check_val "mic left gain" S10Mic_IN3L_Digital -6dB
+check_val "mic right gain" S10Mic_IN4L_Digital -6dB
+check_val "mic left route" S10Mic_AIF1TX1_Input_1 IN3L
+check_val "mic right route" S10Mic_AIF1TX2_Input_1 IN4L
+expect "check passes after apply" 0 "$route" --check
+
+: > "$root/state/log"
+expect "second apply is idempotent" 0 "$route"
+if grep -q '^set ' "$root/state/log"; then
+    echo "FAIL: idempotent run wrote controls" >&2
+    failures=$((failures + 1))
+else
+    echo "PASS: idempotent run wrote nothing"
+fi
+
+printf '%s\n' -30dB > "$root/state/val-S10_Bottom_Digital_PCM"
+: > "$root/state/log"
+expect "quieter saved gain accepted" 0 "$route"
+check_val "quieter gain not raised" S10_Bottom_Digital_PCM -30dB
+
+printf '%s\n' 0.00dB > "$root/state/val-S10_Bottom_Digital_PCM"
+expect "check rejects loud gain" 1 "$route" --check
+expect "apply lowers loud gain" 0 "$route"
+check_val "loud gain lowered" S10_Bottom_Digital_PCM -12dB
+
+printf '%s\n' DSP > "$root/state/val-S10_Bottom_PCM_Source"
+expect "check rejects wrong source" 1 "$route" --check
+expect "apply restores source" 0 "$route"
+check_val "source restored" S10_Bottom_PCM_Source ASP
+
+reset
+echo 2 > "$root/state/fail-S10Mic_IN3L_Digital"
+expect "transient set failure is retried" 0 "$route"
+check_val "gain set after retries" S10Mic_IN3L_Digital -6dB
+
+reset
+echo 99 > "$root/state/fail-S10Mic_AIF1TX1_Input_1"
+expect "persistent set failure fails" 1 "$route"
+if [ ! -e "$root/ready" ]; then
+    echo "PASS: no ready marker on failure"
+else
+    echo "FAIL: ready marker after failure" >&2
+    failures=$((failures + 1))
+fi
+
+reset
+printf ' 0 [S10            ]: s10-abox - S10\n' > "$root/cards"
+expect "missing microphone card fails" 1 "$route"
+printf ' 0 [S10            ]: s10-abox - S10\n                      S10\n 1 [S10Mic         ]: s10-mic - S10Mic\n                      S10Mic\n' > "$root/cards"
+
+reset
+expect "gain above 0 dB rejected" 2 env MB007_AUDIO_SPEAKER_DB=3 "$route"
+expect "garbage gain rejected" 2 env MB007_AUDIO_MIC_DB=abc "$route"
+expect "negative wait rejected" 2 env MB007_AUDIO_WAIT=-1 "$route"
+expect "zero tries rejected" 2 env MB007_AUDIO_TRIES=0 "$route"
+expect "unknown argument rejected" 2 "$route" --bogus
+check_val "rejected input wrote nothing" S10_Bottom_Digital_PCM unset
+
+printf 'samsung,exynos9820\0' > "$root/dt/compatible"
+expect "foreign device tree rejected" 1 "$route"
+printf 'samsung,exynos9820\0samsung,beyond2lte\0' > "$root/dt/compatible"
+rmdir "$root/dt/soc@0/abox-mic-card"
+expect "missing card node rejected" 1 "$route"
+
+if [ "$failures" -ne 0 ]; then
+    echo "$failures test(s) failed" >&2
+    exit 1
+fi
+echo "all tests passed"

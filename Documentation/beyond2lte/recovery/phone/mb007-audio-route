@@ -1,0 +1,212 @@
+#!/bin/sh
+set -eu
+
+cards_file=${MB007_AUDIO_CARDS:-/proc/asound/cards}
+dt_root=${MB007_AUDIO_DT:-/proc/device-tree}
+ready_file=${MB007_AUDIO_READY:-/run/mb007-audio-ready}
+wait_polls=${MB007_AUDIO_WAIT:-60}
+tries=${MB007_AUDIO_TRIES:-10}
+poll=${MB007_AUDIO_POLL:-1}
+settle=${MB007_AUDIO_SETTLE:-10}
+speaker_db=${MB007_AUDIO_SPEAKER_DB:--12}
+mic_db=${MB007_AUDIO_MIC_DB:--6}
+speaker_card=S10
+mic_card=S10Mic
+mode=apply
+
+if [ "${1:-}" = --check ]; then
+    mode=check
+elif [ "$#" -ne 0 ]; then
+    echo "usage: mb007-audio-route [--check]" >&2
+    exit 2
+fi
+
+say() {
+    echo "mb007-audio-route: $*" >&2
+}
+
+valid_db() {
+    case $1 in
+        0|-[1-9]|-[1-5][0-9]|-60) return 0 ;;
+    esac
+    return 1
+}
+
+valid_count() {
+    case $1 in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    return 0
+}
+
+is_beyond() {
+    [ -r "$dt_root/compatible" ] || return 1
+    tr '\0' '\n' < "$dt_root/compatible" | grep -Eqx 'samsung,beyond[12]lte'
+}
+
+has_nodes() {
+    [ -d "$dt_root/soc@0/abox-speaker-card" ] && [ -d "$dt_root/soc@0/abox-mic-card" ]
+}
+
+card_present() {
+    [ -r "$cards_file" ] || return 1
+    sed -n 's/^ *[0-9][0-9]* \[\([^] ]*\) *\]:.*/\1/p' "$cards_file" | grep -Fxq "$1"
+}
+
+cards_ready() {
+    card_present "$speaker_card" && card_present "$mic_card"
+}
+
+wait_cards() {
+    n=0
+    while [ "$n" -lt "$wait_polls" ]; do
+        cards_ready && return 0
+        n=$((n + 1))
+        sleep "$poll"
+    done
+    cards_ready
+}
+
+mixer_get() {
+    amixer -c "$1" sget "$2" 2>/dev/null
+}
+
+enum_current() {
+    mixer_get "$1" "$2" | sed -n "s/^ *Item0: '\\(.*\\)'\$/\\1/p"
+}
+
+db_max() {
+    mixer_get "$1" "$2" | awk '
+        {
+            s = $0
+            while (match(s, /\[-?[0-9]+(\.[0-9]+)?dB\]/)) {
+                v = substr(s, RSTART + 1, RLENGTH - 4) + 0
+                if (!n || v > m) m = v
+                n++
+                s = substr(s, RSTART + RLENGTH)
+            }
+        }
+        END { if (n) printf "%s\n", m }'
+}
+
+db_within() {
+    awk -v c="$1" -v t="$2" -v slack="$3" 'BEGIN { exit !(c <= t + slack) }'
+}
+
+ensure_enum() {
+    card=$1
+    ctl=$2
+    want=$3
+    [ "$(enum_current "$card" "$ctl")" = "$want" ] && return 0
+    [ "$mode" = apply ] || return 1
+    amixer -q -c "$card" sset "$ctl" "$want" >/dev/null 2>&1 || return 1
+    [ "$(enum_current "$card" "$ctl")" = "$want" ]
+}
+
+ensure_gain() {
+    card=$1
+    ctl=$2
+    ceiling=$3
+    cur=$(db_max "$card" "$ctl")
+    [ -n "$cur" ] || return 1
+    db_within "$cur" "$ceiling" 0 && return 0
+    if [ "$mode" = check ]; then
+        db_within "$cur" "$ceiling" 0.51 && return 0
+        return 1
+    fi
+    amixer -q -c "$card" sset "$ctl" -- "${ceiling}dB" >/dev/null 2>&1 || return 1
+    cur=$(db_max "$card" "$ctl")
+    [ -n "$cur" ] || return 1
+    db_within "$cur" "$ceiling" 0.51
+}
+
+apply_target() {
+    case $1 in
+        speaker)
+            ensure_gain "$speaker_card" 'Bottom Digital PCM' "$speaker_db" &&
+                ensure_gain "$speaker_card" 'Receiver Digital PCM' "$speaker_db" &&
+                ensure_enum "$speaker_card" 'Bottom PCM Source' ASP &&
+                ensure_enum "$speaker_card" 'Receiver PCM Source' ASP
+            ;;
+        mic)
+            ensure_gain "$mic_card" 'IN3L Digital' "$mic_db" &&
+                ensure_gain "$mic_card" 'IN4L Digital' "$mic_db" &&
+                ensure_enum "$mic_card" 'AIF1TX1 Input 1' IN3L &&
+                ensure_enum "$mic_card" 'AIF1TX2 Input 1' IN4L
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+retry_apply() {
+    target=$1
+    n=1
+    while ! apply_target "$target"; do
+        [ "$n" -ge "$tries" ] && return 1
+        n=$((n + 1))
+        sleep "$poll"
+    done
+    return 0
+}
+
+route_card() {
+    card=$1
+    target=$2
+    if ! card_present "$card"; then
+        say "card $card is not registered"
+        return 1
+    fi
+    if ! retry_apply "$target"; then
+        say "card $card mixer route $mode failed"
+        return 1
+    fi
+    say "card $card route ok ($mode)"
+    return 0
+}
+
+if ! valid_db "$speaker_db" || ! valid_db "$mic_db"; then
+    say "gain limits must be integer dB from -60 to 0"
+    exit 2
+fi
+if ! valid_count "$wait_polls" || ! valid_count "$tries" || ! valid_count "$settle"; then
+    say "wait, tries and settle must be unsigned integers"
+    exit 2
+fi
+if [ "$tries" -lt 1 ]; then
+    say "tries must be at least 1"
+    exit 2
+fi
+if ! is_beyond; then
+    say "not a beyond1lte or beyond2lte device tree"
+    exit 1
+fi
+if ! has_nodes; then
+    say "audio card nodes missing from the device tree"
+    exit 1
+fi
+if ! command -v amixer >/dev/null 2>&1; then
+    say "amixer not found"
+    exit 1
+fi
+
+if [ "$mode" = apply ]; then
+    rm -f "$ready_file"
+    if ! wait_cards; then
+        say "cards $speaker_card and $mic_card did not register within ${wait_polls}s"
+        exit 1
+    fi
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm settle --timeout="$settle" >/dev/null 2>&1 || true
+    fi
+fi
+
+rc=0
+route_card "$speaker_card" speaker || rc=1
+route_card "$mic_card" mic || rc=1
+
+if [ "$rc" -eq 0 ] && [ "$mode" = apply ]; then
+    : > "$ready_file"
+fi
+exit "$rc"

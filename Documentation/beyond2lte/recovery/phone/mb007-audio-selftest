@@ -1,0 +1,75 @@
+#!/bin/sh
+set -eu
+
+route=${MB007_AUDIO_ROUTE:-/usr/local/libexec/mb007-audio-route}
+seconds=${MB007_AUDIO_RECORD_SECONDS:-3}
+ready_file=${MB007_AUDIO_READY:-/run/mb007-audio-ready}
+tmp=$(mktemp -d) || exit 1
+trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+rc=0
+
+fail() {
+    echo "FAIL: $*" >&2
+    rc=1
+}
+
+pass() {
+    echo "PASS: $*"
+}
+
+case $seconds in
+    ''|*[!0-9]*)
+        echo "record seconds must be an unsigned integer" >&2
+        exit 2
+        ;;
+esac
+[ "$seconds" -ge 1 ] || {
+    echo "record seconds must be at least 1" >&2
+    exit 2
+}
+
+if [ -e "$ready_file" ]; then
+    pass "ready marker present"
+else
+    fail "ready marker $ready_file missing"
+fi
+
+if "$route" --check; then
+    pass "mixer route and gain ceilings"
+else
+    fail "mixer route or gain ceilings"
+fi
+
+if aplay -q -D hw:S10,0 -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero; then
+    pass "speaker PCM opens and runs with silence"
+else
+    fail "speaker PCM"
+fi
+
+if arecord -q -D hw:S10Mic,0 -t raw -f S16_LE -r 48000 -c 2 -d "$seconds" "$tmp/capture.raw"; then
+    pass "microphone PCM recorded"
+    frames=$((seconds * 48000))
+    if od -An -v -t d2 -w4 "$tmp/capture.raw" | awk -v want="$frames" '
+        {
+            l = $1 + 0
+            r = $2 + 0
+            if (NR == 1 || l < lmin) lmin = l
+            if (NR == 1 || l > lmax) lmax = l
+            if (NR == 1 || r < rmin) rmin = r
+            if (NR == 1 || r > rmax) rmax = r
+            if (l != r) diff++
+        }
+        END {
+            if (!diff) diff = 0
+            printf "frames=%d left_span=%d right_span=%d differing=%d\n", NR, lmax - lmin, rmax - rmin, diff
+            exit !(NR >= want * 9 / 10 && lmax - lmin >= 2 && rmax - rmin >= 2 && diff * 100 >= NR)
+        }'; then
+        pass "both microphone channels carry distinct signal"
+    else
+        fail "a microphone channel is silent, constant or duplicated"
+    fi
+else
+    fail "microphone PCM"
+fi
+
+exit "$rc"
