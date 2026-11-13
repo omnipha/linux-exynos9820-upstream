@@ -524,6 +524,39 @@
 		 */
 	};
 
+	gpu_opp_table: opp-table {
+		compatible = "operating-points-v2";
+
+		/*
+		 * Rates from the vendor G3D DVFS table. ACPM programs the
+		 * rail, so these entries have no opp-microvolt. The upper
+		 * vendor rates stay out until a measured G3D cooling model exists.
+		 */
+		opp-156000000 {
+			opp-hz = /bits/ 64 <156000000>;
+		};
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+		};
+
+		opp-260000000 {
+			opp-hz = /bits/ 64 <260000000>;
+		};
+
+		opp-325000000 {
+			opp-hz = /bits/ 64 <325000000>;
+		};
+
+		opp-377000000 {
+			opp-hz = /bits/ 64 <377000000>;
+		};
+
+		opp-433000000 {
+			opp-hz = /bits/ 64 <433000000>;
+		};
+	};
+
 	firmware {
 		acpm_ipc: power-management {
 			compatible = "samsung,exynos9820-acpm-ipc";
@@ -1124,6 +1157,14 @@
 			reg = <0x15862100 0x20>;
 			#power-domain-cells = <0>;
 			label = "G3D";
+			/*
+			 * The bootloader leaves this domain on. The generic
+			 * Exynos power-domain driver only toggles the PMU bit
+			 * and does not run Samsung's G3D sequence or the EL3
+			 * TZPC call, so letting genpd switch it off makes a
+			 * later GPU access fault. Keep the bootloader state.
+			 */
+			status = "disabled";
 		};
 
 		pd_fsys0a: power-domain@15862200 {
@@ -1285,6 +1326,20 @@
 			compatible = "samsung,exynos9820-g3d-sysreg", "syscon";
 			reg = <0x18420000 0x10000>;
 			/* Clock omitted to keep the clock driver simple */
+		};
+
+		gpu: gpu@18500000 {
+			compatible = "samsung,exynos9820-mali", "arm,mali-bifrost";
+			reg = <0x18500000 0x5000>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu";
+			clocks = <&acpm_ipc EXYNOS9820_CLK_ACPM_DVFS_G3D>;
+			samsung,pmu-syscon = <&pmu_system_controller 0x2104>;
+			operating-points-v2 = <&gpu_opp_table>;
+			#cooling-cells = <2>;
+			status = "disabled";
 		};
 
 		pinctrl_aud: pinctrl@18c60000 {

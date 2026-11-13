@@ -6,15 +6,16 @@ A community kernel tree for bringing Linux to Samsung Exynos 9820 devices, inclu
 
 ## Hardware status
 
-The results below were measured on a **Galaxy S10+ SM-G975F (`beyond2lte`)**, using a postmarketOS-based system, kernel `7.2.0-rc2-g160cc32e597f` ([tested commit](https://github.com/omnipha/linux-samsung-s10-exynos9820/commit/160cc32e597f)) and a custom U-Boot/initramfs setup. They do not establish support for other models or all hardware revisions.
+The results below were measured on a **Galaxy S10+ SM-G975F (`beyond2lte`)**, using a postmarketOS-based system and a custom U-Boot/initramfs setup. Wi-Fi used kernel `7.2.0-rc2-g160cc32e597f` ([tested commit](https://github.com/omnipha/linux-samsung-s10-exynos9820/commit/160cc32e597f)); the GPU test used the experimental `issue-8-mali-g76` branch at `f31200d85813`. They do not establish support for other models or all hardware revisions.
 
 | Component | Observed status |
 | --- | --- |
 | Boot and storage | Kernel boots and mounts the root filesystem with the custom boot setup. The test system experienced ext4 corruption; long-term storage reliability is not established. |
 | USB networking | USB gadget networking and SSH worked with the test initramfs and device-specific setup. |
-| Display and touch | Simple framebuffer console works (`/dev/fb0` present). Touchscreen (`s6sy761`) is built in and registers under `/dev/input/` on cold boot, but probe is intermittent across warm reboots (the touch IC stays powered across warm resets and comes up in an unready bootloader state; the driver returns `-ENODEV` without power-cycling the regulators). A desktop and accelerated graphics have not been verified. |
+| Display and touch | Simple framebuffer console works (`/dev/fb0` present). Touchscreen (`s6sy761`) is built in and registers under `/dev/input/` on cold boot, but probe is intermittent across warm reboots (the touch IC stays powered across warm resets and comes up in an unready bootloader state; the driver returns `-ENODEV` without power-cycling the regulators). A desktop has not been verified. |
 | BCM4375 Wi-Fi | PCIe Gen1 x1 link, firmware 18.41.117, scan, WPA2 association, DHCP and SSH over Wi-Fi were verified after manual setup. |
-| GPU, mobile network, audio, Bluetooth, sensors, cameras | Not verified by this project. |
+| GPU | On `beyond2lte`, the Mali-G76 (MP12, GPU ID `0x7211`) probes with panfrost (`/dev/dri/renderD128`). `kmscube -D /dev/dri/card0 -c 600` reported `Mali-G76 MC12 (Panfrost)`, rendered 599 frames in 19.14 seconds, and exited 0; afterward `/proc/interrupts` showed 1201 `panfrost-job` interrupts and no GPU faults. A passive 88 °C G3D cooling trip is wired to the devfreq cooling device but has not been exercised (the device stayed near 40 °C). Higher-than-433 MHz rates, suspend/resume and thermal throttling are not verified. |
+| Mobile network, audio, Bluetooth, sensors, cameras | Not verified by this project. |
 
 The tree also contains a device tree for `beyond1lte` (Galaxy S10); we have not verified it on hardware. Other S10-series models need their own verification.
 
