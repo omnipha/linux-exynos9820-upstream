@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-GPL--2.0-blue.svg)](https://github.com/omnipha/linux-samsung-s10-exynos9820/blob/main/COPYING)
 [![Help wanted](https://img.shields.io/badge/Help%20wanted-open%20issues-brightgreen.svg)](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues)
 
-Mainline Linux for the 2019 Samsung phones built on the **Exynos 9820**: the Galaxy S10 family and the Note10 family. One tree, tested in the open, aimed at upstream.
+Mainline Linux for the 2019 Samsung phones built on the **Exynos 9820**: the Galaxy S10 family (Exynos models). One tree, tested in the open, aimed at upstream.
 
 > **Tested so far: one Galaxy S10+ (SM-G975F).** The other models share the SoC and are welcome here, but nothing below has been measured on them.
 
@@ -18,10 +18,8 @@ Mainline Linux for the 2019 Samsung phones built on the **Exynos 9820**: the Gal
 | Galaxy S10 | SM-G973F | `beyond1lte` | device tree, untested |
 | Galaxy S10+ | SM-G975F | `beyond2lte` | booting, see below |
 | Galaxy S10 5G | SM-G977B | `beyondx` | not yet |
-| Galaxy Note10 | SM-N970F | `d1` | not yet |
-| Galaxy Note10+ | SM-N975F | `d2s` | not yet |
 
-Exynos models only. The Snapdragon variants (SM-G970U, SM-G973U, SM-G975U and the US Note10) are a different SoC and will not boot this kernel. The Galaxy S10 Lite uses an Exynos 990 and is out of scope.
+Exynos models only. The Snapdragon variants (SM-G970U, SM-G973U, SM-G975U) and the Galaxy S10 Lite (Snapdragon 855) are a different SoC and will not boot this kernel. The Note10 family uses the Exynos 9825, a refresh of the 9820; Samsung's vendor tree builds it from the same platform code. We have not checked it.
 
 ## What already runs on the S10+
 
@@ -47,7 +45,7 @@ These are open and measured against the stock hardware. Pick one.
 | 📐 Sensors | [#18](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/18) orientation |
 | 📍 GPS | [#22](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/22) fixes |
 
-Own an S10e, S10 5G or Note10? A boot log from your exact model is useful on its own. Open an issue with the model, the kernel commit and the log. Strip serial numbers, credentials and addresses first.
+Own an S10e or S10 5G? A boot log from your exact model is useful on its own. Open an issue with the model, the kernel commit and the log. Strip serial numbers, credentials and addresses first.
 
 ## Build
 
