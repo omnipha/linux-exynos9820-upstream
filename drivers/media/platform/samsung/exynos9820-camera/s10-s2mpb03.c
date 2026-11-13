@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
+#include "s10-s2mpb02.h"
 
 static bool regulators = true;
 module_param(regulators, bool, 0400);
@@ -212,6 +213,11 @@ static int pb03_probe(struct i2c_client *client)
 	    (!of_machine_is_compatible("samsung,beyond1lte") &&
 	     !of_machine_is_compatible("samsung,beyond2lte")))
 		return -ENODEV;
+
+	ret = s10_s2mpb02_buck1_require(&client->dev);
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "S2MPB02 BUCK1 not initialized\n");
 
 	pb03 = devm_kzalloc(&client->dev, sizeof(*pb03), GFP_KERNEL);
 	if (!pb03)

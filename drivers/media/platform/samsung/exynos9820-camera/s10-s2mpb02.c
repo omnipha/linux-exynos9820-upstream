@@ -11,12 +11,15 @@
  * registers are left untouched.
  */
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
+#include "s10-s2mpb02.h"
 
 #define PB02_REG_ID		0x00
 #define PB02_REG_B1CTRL1	0x0b
@@ -81,6 +84,33 @@ struct pb02 {
 	struct regmap *map;
 };
 
+static DEFINE_MUTEX(pb02_lock);
+static struct device *pb02_ready_dev;
+
+static void pb02_unready(void *unused)
+{
+	mutex_lock(&pb02_lock);
+	pb02_ready_dev = NULL;
+	mutex_unlock(&pb02_lock);
+}
+
+int s10_s2mpb02_buck1_require(struct device *consumer)
+{
+	struct device_link *link;
+	int ret = -EPROBE_DEFER;
+
+	mutex_lock(&pb02_lock);
+	if (pb02_ready_dev) {
+		link = device_link_add(consumer, pb02_ready_dev,
+				       DL_FLAG_AUTOREMOVE_CONSUMER);
+		if (link && READ_ONCE(link->status) == DL_STATE_CONSUMER_PROBE)
+			ret = 0;
+	}
+	mutex_unlock(&pb02_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(s10_s2mpb02_buck1_require);
+
 static int pb02_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -124,31 +154,60 @@ static int pb02_probe(struct i2c_client *client)
 		if (ret)
 			return dev_err_probe(dev, ret, "BUCK1 voltage write failed\n");
 		usleep_range(2000, 2500);
-		ret = regmap_write(pb02->map, PB02_REG_B1CTRL1, PB02_LIVE_B1CTRL1);
-		if (ret) {
-			regmap_write(pb02->map, PB02_REG_B1CTRL2, PB02_BOOT_B1CTRL2);
-			return dev_err_probe(dev, ret, "BUCK1 enable write failed\n");
+		ret = regmap_read(pb02->map, PB02_REG_B1CTRL2, &c2);
+		if (ret || c2 != PB02_LIVE_B1CTRL2) {
+			dev_err(dev, "BUCK1 voltage readback failed: %#04x\n", c2);
+			return dev_err_probe(dev, ret ?: -EIO,
+					     "BUCK1 voltage not confirmed\n");
 		}
+		ret = regmap_update_bits(pb02->map, PB02_REG_B1CTRL1,
+					 PB02_BUCK1_ENABLE_MASK, PB02_BUCK1_ENABLE_VAL);
+		if (ret)
+			return dev_err_probe(dev, ret, "BUCK1 enable update failed\n");
 		usleep_range(5000, 6000);
-		dev_info(dev, "BUCK1 initialized to 1.3 V (0x%02x/0x%02x)\n",
-			 PB02_LIVE_B1CTRL1, PB02_LIVE_B1CTRL2);
-	} else if (c1 == PB02_LIVE_B1CTRL1 && c2 == PB02_LIVE_B1CTRL2) {
-		dev_info(dev, "BUCK1 already running at 1.3 V\n");
+	} else if (c1 == PB02_BOOT_B1CTRL1 && c2 == PB02_LIVE_B1CTRL2) {
+		ret = regmap_update_bits(pb02->map, PB02_REG_B1CTRL1,
+					 PB02_BUCK1_ENABLE_MASK, PB02_BUCK1_ENABLE_VAL);
+		if (ret)
+			return dev_err_probe(dev, ret, "BUCK1 enable update failed\n");
+		usleep_range(5000, 6000);
 	} else if ((c1 & PB02_BUCK1_ENABLE_MASK) == PB02_BUCK1_ENABLE_VAL &&
 		   c2 == PB02_LIVE_B1CTRL2) {
-		dev_info(dev, "BUCK1 active with alternate mode (%#04x/%#04x)\n",
-			 c1, c2);
+		dev_info(dev, "BUCK1 already active (%#04x/%#04x)\n", c1, c2);
+	} else if ((c1 & PB02_BUCK1_ENABLE_MASK) == PB02_BUCK1_ENABLE_VAL &&
+		   c2 == PB02_BOOT_B1CTRL2) {
+		ret = regmap_write(pb02->map, PB02_REG_B1CTRL2, PB02_LIVE_B1CTRL2);
+		if (ret)
+			return dev_err_probe(dev, ret, "BUCK1 voltage write failed\n");
+		usleep_range(25000, 26000);
 	} else {
 		return dev_err_probe(dev, -ENODEV,
 				     "unsupported BUCK1 state: %#04x/%#04x\n",
 				     c1, c2);
 	}
 
+	ret = regmap_read(pb02->map, PB02_REG_B1CTRL1, &c1);
+	ret = ret ?: regmap_read(pb02->map, PB02_REG_B1CTRL2, &c2);
+	if (ret || (c1 & PB02_BUCK1_ENABLE_MASK) != PB02_BUCK1_ENABLE_VAL ||
+	    c2 != PB02_LIVE_B1CTRL2)
+		return dev_err_probe(dev, ret ?: -EIO,
+				     "BUCK1 final state invalid: %#04x/%#04x\n",
+				     c1, c2);
+	dev_info(dev, "BUCK1 confirmed at 1.3 V selector (%#04x/%#04x)\n", c1, c2);
+
 	config.regmap = pb02->map;
 	rdev = devm_regulator_register(dev, &pb02_buck1_desc, &config);
 	if (IS_ERR(rdev))
 		return dev_err_probe(dev, PTR_ERR(rdev),
 				     "failed to register BUCK1\n");
+
+	ret = devm_add_action_or_reset(dev, pb02_unready, NULL);
+	if (ret)
+		return ret;
+
+	mutex_lock(&pb02_lock);
+	pb02_ready_dev = dev;
+	mutex_unlock(&pb02_lock);
 
 	return 0;
 }

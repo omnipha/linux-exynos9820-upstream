@@ -82,6 +82,7 @@ config VIDEO_S5K_CIS
 config REGULATOR_S10_S2MPB03
 	tristate "Samsung S2MPB03 camera regulator"
 	depends on I2C && OF && REGULATOR
+	depends on REGULATOR_S10_S2MPB02
 	depends on m
 	select REGMAP_I2C
 	help

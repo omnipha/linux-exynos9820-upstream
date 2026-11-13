@@ -7,7 +7,7 @@ The original S10 port [butztill/s10-linux](https://github.com/butztill/s10-linux
 ## Status measured on this device (2026-11-13)
 
 - Bluetooth: the controller came up and a scan found 40 devices after boot. PR [#23](https://github.com/omnipha/linux-samsung-s10-exynos9820/pull/23), issue [#15](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/15).
-- Camera (S5K2L4 / CSIS0 raw capture): 2016×1512 BA10 raw capture functional over mainline V4L2. Validated across exposure/gain sweep (exposure 16..12000, gain 32..512) with light response measured against illuminated target. S2MPB02 BUCK1 persistent kernel regulator driver (s10-s2mpb02) implemented to manage the 1.3 V rail. Issue [#16](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/16).
+- Camera: one 2016×1512 BA10 frame and an exposure/gain sweep were captured on a running system. A covered comparison and persistence through reboot are not yet established. Issue [#16](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/16).
 - Phosh/Phoc 0.58: with simple-framebuffer output `Unknown-1` at 1440×3040 and scale 3, `wlr-randr --output Unknown-1 --transform 90` rotated the UI. The owner confirmed touch still hit the intended targets; `--transform normal` restored the original orientation. Automatic rotation remains unavailable until an orientation provider exists. Reboot persistence was not tested.
 - No sound card (`/proc/asound/cards`), `/dev/video*`, `/dev/media*`, backlight device, IIO sensor, GNSS device or NFC class device was exposed in that boot. `CONFIG_GNSS=y` and `CONFIG_SPI_SPIDEV=y`, but neither proves a device is bound.
 
