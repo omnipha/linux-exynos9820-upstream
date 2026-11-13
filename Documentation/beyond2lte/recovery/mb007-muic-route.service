@@ -1,0 +1,17 @@
+[Unit]
+Description=mb007 persistent MAX77705 MUIC USB line routing
+ConditionKernelCommandLine=mb007.usb=1
+ConditionKernelCommandLine=mb007.muic=1
+Before=unudhcpd@usb0.service
+After=sys-kernel-config.mount
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/timeout -s KILL 12 /usr/local/libexec/mb007-max77705-usb-route --connect
+Restart=on-failure
+RestartSec=5s
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
