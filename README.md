@@ -12,11 +12,12 @@ The results below were measured on a **Galaxy S10+ SM-G975F (`beyond2lte`)**, us
 | --- | --- |
 | Boot and storage | Kernel boots and mounts the root filesystem with the custom boot setup. The test system experienced ext4 corruption; long-term storage reliability is not established. |
 | USB networking | USB gadget networking and SSH worked with the test initramfs and device-specific setup. |
-| Display and touch | Simple framebuffer console works (`/dev/fb0` present). Touchscreen (`s6sy761`) is built in. On kernel `7.2.0-rc2-unified-mb007-tsp-gbddb73611a09` the driver power-cycles its `vdd`/`avdd` supplies before the first probe read, and the touch input device was present in `/proc/bus/input/devices` on four consecutive warm boots (`c2d3f036`, `1d8dbd5f`, `0178f631`, `37dda04e`). A desktop and touch events have not been verified. |
+| Display and touch | Simple framebuffer console works (`/dev/fb0` present). Touchscreen (`s6sy761`) is built in. On kernel `7.2.0-rc2-unified-mb007-tsp-gbddb73611a09` the driver power-cycles its `vdd`/`avdd` supplies before the first probe read, and the touch input device was present in `/proc/bus/input/devices` on four consecutive warm boots (`c2d3f036`, `1d8dbd5f`, `0178f631`, `37dda04e`). On the later Bluetooth kernel `7.2.0-rc2-unified-mb007-bt-ga260b60c67d9-dirty` the owner confirmed correct touch hits, including in a 90-degree rotated Phosh session, and a visibly rendered Phosh desktop on the panel. Multi-touch, axis calibration and suspend/resume were not tested. |
 | USB data routing | On kernel `7.2.0-rc2-unified-mb007-muic-gbd38316687d6` the MAX77705 CCIC driver routes the USB data lines itself. With the userspace `mb007-muic-route.service` disabled, the host enumerated the gadget and SSH worked on two consecutive warm boots (`3a5133cd`, `5cc42acc`), 64 seconds after each reboot. `EXTCON_USB` reported attached and the gadget was configured at high speed. Charging and power-role behaviour were not measured. |
 | BCM4375 Wi-Fi | PCIe Gen1 x1 link, firmware 18.41.117, scan, WPA2 association, DHCP and SSH over Wi-Fi were verified after manual setup. |
 | GPU | On `beyond2lte`, the Mali-G76 (MP12, GPU ID `0x7211`) probes with panfrost (`/dev/dri/renderD128`). `kmscube -D /dev/dri/card0 -c 600` reported `Mali-G76 MC12 (Panfrost)`, rendered 599 frames in 19.14 seconds, and exited 0; afterward `/proc/interrupts` showed 1201 `panfrost-job` interrupts and no GPU faults. A passive 88 °C G3D cooling trip is wired to the devfreq cooling device but has not been exercised (the device stayed near 40 °C). Higher-than-433 MHz rates, suspend/resume and thermal throttling are not verified. |
-| Mobile network, audio, Bluetooth, sensors, cameras | Not verified by this project. |
+| Bluetooth | On 13 November 2026, one `beyond2lte` unit booted `7.2.0-rc2-unified-mb007-bt-ga260b60c67d9-dirty`. `bluetoothctl power on` succeeded and a discovery scan found 40 devices. On that same boot the owner confirmed that touch hits were correct, including in a 90-degree rotated Phosh session, and that Phosh rendered visibly on the panel. Generic public BD address handling, pairing and suspend/resume remain unverified. See Bluetooth notes below for the firmware and test conditions. |
+| Mobile network, audio, sensors, cameras | Not verified by this project. |
 
 The tree also contains a device tree for `beyond1lte` (Galaxy S10); we have not verified it on hardware. Other S10-series models need their own verification.
 
@@ -29,11 +30,43 @@ The tree also contains a device tree for `beyond1lte` (Galaxy S10); we have not 
 
 The detailed Wi-Fi bring-up evidence is in [issue #1](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/1#issuecomment-6782996563) and [PR #2](https://github.com/omnipha/linux-samsung-s10-exynos9820/pull/2). PCIe and WLAN changes from that PR were merged into `main`.
 
+### Bluetooth notes
+
+- For this unit, stock device-tree overlay 9 confirmed the Bluetooth enable pin as `gpm8-0`. The Bluetooth controller is on serial UART1 (`serial1`, through `usi_uart_bt`) with the device-tree compatible `brcm,bcm4329-bt`. The tested config enables `CONFIG_BT_HCIUART=y`, `CONFIG_BT_HCIUART_BCM=y` and `CONFIG_SERIAL_DEV_BUS=y` in `beyond2lte_defconfig`; Kconfig also resolves `CONFIG_BT_BCM`, `CONFIG_BT_HCIUART_SERDEV`, `CONFIG_BT_HCIUART_H4` and `CONFIG_SERIAL_DEV_CTRL_TTYPORT` to `y`.
+- Bluetooth firmware is not distributed here and no HCD file was added to this repository. The test used the device-only stock B1 Semco Sem HCD from the unit's own vendor firmware; its loaded firmware version matched stock, build 0173. The driver probes early, so the HCD must be in the private on-device initramfs as `usr/lib/firmware/brcm/BCM4362A2.samsung,beyond2lte.hcd`. That initramfs is not published; other hardware variants may need different firmware.
+- After the reboot, USB SSH worked, WLAN had carrier and an access-point ping succeeded. A `phosh` process, `/dev/dri/renderD128`, `/dev/fb0` and the touch driver were present; there were no EXT4 errors and exactly three loader entries. On the same boot the owner confirmed correct touch hits, including in a 90-degree rotated Phosh session, and confirmed that Phosh rendered visibly on the panel.
+- The run used the kernel built from `a260b60c67d9` plus the then-uncommitted six-file diff in `arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dts`, `arch/arm64/boot/dts/exynos/exynos9820-pinctrl.dtsi`, `arch/arm64/boot/dts/exynos/exynos9820.dtsi`, `arch/arm64/configs/beyond2lte_defconfig`, `drivers/clk/samsung/clk-exynos9820.c` and `include/dt-bindings/clock/exynos9820.h`. Those source changes are now committed as part of the Bluetooth bring-up; the booted kernel image itself was built before that commit and therefore reports `a260b60c67d9-dirty`.
+- Only controller power-on and device discovery were measured. Generic public BD address handling, pairing, audio and suspend/resume have not been verified.
+
 ## Building
 
 The source is based on Linux 7.2-rc2, via the [`exynos9820-7.2-rc2` branch](https://github.com/chiffathefox/exynos-9820-mainline-linux/tree/exynos9820-7.2-rc2). This is a kernel source tree, not a complete bootable image.
 
-`arch/arm64/configs/beyond2lte_defconfig` is a minimal defconfig, generated with `make savedefconfig` from the configuration of a unified kernel built from this tree at commit `9267a2137168`. That build, and the verification of the defconfig, used Ubuntu clang/LLD 17.0.6 (`LLVM=-17`); regenerating the configuration with `make O=out ARCH=arm64 LLVM=-17 beyond2lte_defconfig` reproduced the built configuration exactly, apart from `CONFIG_LOCALVERSION` (the built kernel carried a private local version string, which is not part of the defconfig). The defconfig keeps the tested base-kernel settings — display (`CONFIG_DRM_SIMPLEDRM=y`) and touch (`CONFIG_TOUCHSCREEN_S6SY761=y`) built in — and adds the WLAN pieces as modules or built-ins (`CONFIG_PCIE_EXYNOS9820=m`, `CONFIG_BRCMFMAC=m`, `CONFIG_BRCMFMAC_PCIE=y`).
+`arch/arm64/configs/beyond2lte_defconfig` is a minimal defconfig, generated with `make savedefconfig` from the configuration of a unified kernel built from this tree at commit `9267a2137168`. That build, and the verification of the defconfig, used Ubuntu clang/LLD 17.0.6 (`LLVM=-17`); regenerating the configuration with `make O=out ARCH=arm64 LLVM=-17 beyond2lte_defconfig` reproduced the built configuration exactly, apart from `CONFIG_LOCALVERSION` (the built kernel carried a private local version string, which is not part of the defconfig). The defconfig keeps the tested base-kernel settings — display (`CONFIG_DRM_SIMPLEDRM=y`) and touch (`CONFIG_TOUCHSCREEN_S6SY761=y`) built in — and adds the WLAN pieces as modules or built-ins (`CONFIG_PCIE_EXYNOS9820=m`, `CONFIG_BRCMFMAC=m`, `CONFIG_BRCMFMAC_PCIE=y`). It now also selects the Bluetooth UART options described above.
+
+The tested Bluetooth kernel was built from the six-file dirty tree above, starting from the previous in-tree MUIC `.config`, not directly from the defconfig. The previous config was backed up and these in-tree commands were run:
+
+```sh
+cp .config /tmp/opencode/config.muic.bak
+scripts/config --enable BT_HCIUART --enable BT_HCIUART_BCM --enable SERIAL_DEV_BUS --set-str LOCALVERSION '-unified-mb007-bt'
+make ARCH=arm64 LLVM=-17 olddefconfig
+make -j"$(nproc)" ARCH=arm64 LLVM=-17 Image modules dtbs
+make ARCH=arm64 LLVM=-17 INSTALL_MOD_PATH="$PWD/out/bt-staging" modules_install
+```
+
+The backup path was specific to this build; choose an existing writable directory when repeating it. The tested source changes were uncommitted at build time, not part of `a260b60c67d9`; they are included in the Bluetooth bring-up commit.
+
+That is not the command to use on a clean checkout, because it depends on the previous `.config`. On a clean source tree at `a260b60c67d9` with the six-file Bluetooth diff applied, the following reproduces the tested `.config` exactly, including `CONFIG_LOCALVERSION="-unified-mb007-bt"` and every dependency selected by `olddefconfig`. This was checked with Ubuntu clang/LLD 17.0.6 by generating only the configuration (the first three commands below) in scratch output directories from a copy of the tracked files plus the six-file diff, and comparing it byte for byte with the tested `.config`. The committed `HEAD` defconfig, with `CONFIG_LOCALVERSION` set to `-unified-mb007-muic`, likewise reproduced the recorded previous configuration. The full build and `modules_install` commands below were not re-run from a clean tree for this README.
+
+```sh
+make O=out ARCH=arm64 LLVM=-17 beyond2lte_defconfig
+scripts/config --file out/.config --set-str LOCALVERSION '-unified-mb007-bt'
+make O=out ARCH=arm64 LLVM=-17 olddefconfig
+make -j"$(nproc)" O=out ARCH=arm64 LLVM=-17 Image modules dtbs
+make O=out ARCH=arm64 LLVM=-17 INSTALL_MOD_PATH="$PWD/out/bt-staging" modules_install
+```
+
+`olddefconfig` reports no change after the local-version assignment. The tested kernel release gained `-ga260b60c67d9-dirty` from `CONFIG_LOCALVERSION_AUTO=y` because the six source files were uncommitted at build time. A clean tree at the Bluetooth bring-up commit gets its own commit suffix instead. The source tree must be clean before the first `O=out` build; an existing in-tree configuration makes the kernel reject an out-of-tree output directory.
 
 Cross-build with Clang/LLVM 17 and the usual kernel build dependencies:
 

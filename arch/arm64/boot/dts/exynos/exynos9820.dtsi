@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/samsung,exynos9820-acpm.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/exynos9820.h>
+#include <dt-bindings/soc/samsung,exynos-usi.h>
 
 / {
 	compatible = "samsung,exynos9820";
@@ -18,6 +19,8 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
 		pinctrl0 = &pinctrl_alive;
 		pinctrl1 = &pinctrl_aud;
 		pinctrl2 = &pinctrl_cmgp;
@@ -834,9 +837,11 @@
 			#clock-cells = <1>;
 
 			clock-names = "oscclk",
-				      "bus";
+				      "bus",
+				      "ip";
 			clocks = <&oscclk>,
-				 <&cmu_top CLK_DOUT_CMU_PERIC1_BUS>;
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_BUS>,
+				 <&cmu_top CLK_DOUT_CMU_PERIC1_IP>;
 			samsung,sysreg = <&sysreg_peric1>;
 		};
 
@@ -850,6 +855,37 @@
 			compatible = "samsung,exynos9820-pinctrl";
 			reg = <0x10830000 0x1000>;
 			interrupts = <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		usi_uart_bt: usi@108400c0 {
+			compatible = "samsung,exynos850-usi";
+			reg = <0x108400c0 0x20>;
+			ranges;
+			clock-names = "pclk",
+				      "ipclk";
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_UART_BT_PCLK>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_UART_BT_IPCLK>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			samsung,sysreg = <&sysreg_peric1 0x1000>;
+			samsung,mode = <USI_MODE_UART>;
+			samsung,clkreq-on;
+			status = "disabled";
+
+			serial1: serial@10840000 {
+				compatible = "samsung,exynos7870-uart",
+					     "samsung,exynos8895-uart";
+				reg = <0x10840000 0xc0>;
+				interrupts = <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart1_bus>;
+				clock-names = "uart",
+					      "clk_uart_baud0";
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_UART_BT_PCLK>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_UART_BT_IPCLK>;
+				samsung,uart-fifosize = <256>;
+				status = "disabled";
+			};
 		};
 
 		cmu_fsys0a: clock-controller@10a00000 {
