@@ -1,0 +1,72 @@
+#!/bin/sh
+# Host: bring up the S10+ gadget on its measured physical port. In the
+# diagnostic entry acknowledge the guard only after pinned-key SSH succeeds;
+# in the persistent entry validate SSH without enabling a recovery timer.
+set -eu
+. /etc/default/mb007-usb
+expected_path=${MB007_USB_PATH:?set MB007_USB_PATH in /etc/default/mb007-usb}
+known_hosts=${MB007_KNOWN_HOSTS:?}
+client_key=${MB007_CLIENT_KEY:?}
+
+find_interface() {
+    for node in /sys/class/net/*; do
+        [ -e "$node" ] || continue
+        props=$(udevadm info --query=property --path="$node" 2>/dev/null) || continue
+        printf '%s\n' "$props" | grep -Fxq 'ID_VENDOR_ID=18d1' || continue
+        printf '%s\n' "$props" | grep -Fxq 'ID_MODEL_ID=d001' || continue
+        printf '%s\n' "$props" | grep -Fxq 'ID_SERIAL_SHORT=postmarketOS' || continue
+        printf '%s\n' "$props" | grep -Fxq 'ID_USB_DRIVER=cdc_ncm' || continue
+        printf '%s\n' "$props" | grep -Fxq "ID_PATH=$expected_path" || continue
+        basename "$node"
+        return 0
+    done
+    return 1
+}
+
+[ -s "$known_hosts" ] && [ -s "$client_key" ] || { echo 'missing SSH identity'; exit 1; }
+i=0
+while [ "$i" -lt 40 ]; do
+    iface=$(find_interface || :)
+    if [ -n "$iface" ]; then
+        /usr/sbin/ip link set dev "$iface" up
+        if ! /usr/sbin/ip -4 -o addr show dev "$iface" | grep -Fq ' 172.16.42.2/16 '; then
+            /usr/sbin/ip addr replace 172.16.42.2/16 dev "$iface"
+        fi
+        echo "candidate interface=$iface, pinned SSH attempt=$((i+1))"
+        if /usr/bin/timeout 7 /usr/bin/sudo -n -u "$MB007_HOST_USER" /usr/bin/ssh \
+            -i "$client_key" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o ConnectTimeout=4 -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts" -o BindInterface="$iface" \
+            user@172.16.42.1 '
+                set -eu
+                test "$(hostname)" = mb007
+                grep -q "samsung,beyond2lte" /proc/device-tree/compatible
+                grep -qw mb007.muic=1 /proc/cmdline
+                test "$(cat /sys/class/udc/10c00000.usb/state)" = configured
+                if grep -qw mb007.guard=1 /proc/cmdline; then
+                    sudo -n test -x /usr/local/libexec/mb007-usb-guard
+                    sudo -n touch /run/mb007-usb-ack
+                    echo authenticated_guard_acknowledged
+                elif grep -qw mb007.usb=1 /proc/cmdline; then
+                    # Prefer any ordinary WLAN default route over USB sharing.
+                    sudo -n /usr/sbin/ip -4 route replace default via 172.16.42.2 dev usb0 metric 2000
+                    echo authenticated_persistent_usb
+                else
+                    echo "refused: unexpected boot mode" >&2
+                    exit 1
+                fi
+                printf "remote_boot_id="; cat /proc/sys/kernel/random/boot_id
+            '; then
+            echo "connected interface=$iface"
+            # Internet sharing is optional: failure must not undo SSH access.
+            if [ -x /usr/local/sbin/mb007-usb-share ]; then
+                /usr/local/sbin/mb007-usb-share || echo 'USB Internet sharing unavailable' >&2
+            fi
+            exit 0
+        fi
+    fi
+    i=$((i+1))
+    sleep 3
+done
+echo 'no authenticated USB SSH; check the phone and USB route' >&2
+exit 1

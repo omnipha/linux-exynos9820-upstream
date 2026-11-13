@@ -32,6 +32,21 @@
 		};
 	};
 
+	reserved-memory {
+		/*
+		 * Persistent crash log. 0xfd910000 is the stock log_kernel region
+		 * (debug_snapshot); it does not overlap modem_if or cp_ram_logging
+		 * (end 0xfd8fffff). Read after a crash from /sys/fs/pstore.
+		 */
+		ramoops@fd910000 {
+			compatible = "ramoops";
+			reg = <0x0 0xfd910000 0x200000>;
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			pmsg-size = <0x40000>;
+		};
+	};
+
 	wlan_pwr: regulator-wlan {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan_reg_on";
