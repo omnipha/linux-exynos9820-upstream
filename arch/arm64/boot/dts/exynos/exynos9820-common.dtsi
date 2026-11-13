@@ -219,6 +219,11 @@
 		interrupt-parent = <&max77705>;
 		interrupts = <0>;
 	};
+
+	max77705_muic: typec@25 {
+		compatible = "maxim,max77705-muic";
+		reg = <0x25>;
+	};
 };
 
 &oscclk {

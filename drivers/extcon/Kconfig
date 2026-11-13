@@ -115,6 +115,17 @@ config EXTCON_MAX77693
 	  Maxim MAX77693 PMIC. The MAX77693 MUIC is a USB port accessory
 	  detector and switch.
 
+config EXTCON_MAX77705
+	tristate "Maxim MAX77705 CCIC EXTCON support"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the USB Type-C port of the
+	  Maxim MAX77705 companion IC. The driver routes the USB data
+	  lines of the internal MUIC switch while a sink is attached
+	  and reports the cable state through extcon. No power-role,
+	  VBUS, USB PD or charger control is implemented.
+
 config EXTCON_MAX77843
 	tristate "Maxim MAX77843 EXTCON Support"
 	depends on MFD_MAX77843

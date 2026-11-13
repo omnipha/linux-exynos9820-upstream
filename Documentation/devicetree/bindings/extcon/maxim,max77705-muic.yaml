@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/extcon/maxim,max77705-muic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX77705 companion PMIC Type-C CCIC / MUIC
+
+maintainers:
+  - Gregor Sprint <gregor@sprintcx.de>
+
+description:
+  The Maxim MAX77705 includes an internal Type-C CC logic and micro-USB
+  interface controller (CCIC / MUIC). The CCIC firmware monitors the Type-C
+  Configuration Channel and reports cable state. The internal MUIC switch
+  routes D+/D- lines between the Type-C receptacle and the USB controller.
+
+properties:
+  compatible:
+    const: maxim,max77705-muic
+
+  reg:
+    maxItems: 1
+    description: I2C slave address of the CCIC block, typically 0x25.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        typec@25 {
+            compatible = "maxim,max77705-muic";
+            reg = <0x25>;
+        };
+    };
