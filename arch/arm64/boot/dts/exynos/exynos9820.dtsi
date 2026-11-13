@@ -21,6 +21,7 @@
 	aliases {
 		serial0 = &serial0;
 		serial1 = &serial1;
+		spi2 = &spi2;
 		pinctrl0 = &pinctrl_alive;
 		pinctrl1 = &pinctrl_aud;
 		pinctrl2 = &pinctrl_cmgp;
@@ -785,6 +786,43 @@
 			status = "disabled";
 		};
 
+		usi2: usi@104700c0 {
+			compatible = "samsung,exynos850-usi";
+			reg = <0x104700c0 0x20>;
+			ranges;
+
+			clock-names = "pclk",
+				      "ipclk";
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_USI02_USI_PCLK>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_USI02_USI_IPCLK>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			samsung,sysreg = <&sysreg_peric0 0x100c>;
+			status = "disabled";
+
+			spi2: spi@10470000 {
+				compatible = "samsung,exynos850-spi";
+				reg = <0x10470000 0x30>;
+				interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
+
+				clock-names = "spi",
+					      "spi_busclk0";
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_USI02_USI_PCLK>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_USI02_USI_IPCLK>;
+
+				num-cs = <1>;
+				pinctrl-0 = <&spi2_bus>;
+				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
+		};
+
 		usi3: usi@104b00c0 {
 			compatible = "samsung,exynos850-usi";
 			reg = <0x104b00c0 0x20>;
@@ -855,6 +893,42 @@
 			compatible = "samsung,exynos9820-pinctrl";
 			reg = <0x10830000 0x1000>;
 			interrupts = <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		usi17: usi@109a00c0 {
+			compatible = "samsung,exynos850-usi";
+			reg = <0x109a00c0 0x20>;
+			ranges;
+
+			clock-names = "pclk",
+				      "ipclk";
+			clocks = <&cmu_peric1 CLK_GOUT_PERIC1_USI17_I2C_PCLK>,
+				 <&cmu_peric1 CLK_GOUT_PERIC1_USI17_I2C_IPCLK>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			samsung,sysreg = <&sysreg_peric1 0x1050>;
+			status = "disabled";
+
+			hsi2c38: i2c@109a0000 {
+				compatible = "samsung,exynosautov9-hsi2c";
+				reg = <0x109a0000 0xc0>;
+
+				clock-names = "hsi2c",
+					      "hsi2c_pclk";
+				clocks = <&cmu_peric1 CLK_GOUT_PERIC1_USI17_I2C_IPCLK>,
+					 <&cmu_peric1 CLK_GOUT_PERIC1_USI17_I2C_PCLK>;
+
+				interrupts = <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-0 = <&hsi2c38_bus>;
+				pinctrl-names = "default";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
 		};
 
 		usi_uart_bt: usi@108400c0 {
