@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config S10_ISPPRE_HOLD
+	tristate "Galaxy S10 ISPPRE power-domain hold"
+	depends on OF && PM && PM_GENERIC_DOMAINS
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on m
+	help
+	  Keep the Exynos 9820 ISPPRE power domain powered. Mainline
+	  exynos-pd does not restore the ISPPRE CMU after a power cycle, so
+	  this module must be loaded and bound before the ISPPRE clock and
+	  CSIS drivers. It cannot be unloaded.
+
+	  This driver is a module named s10-isppre-hold.
+
+config S10_ISPPRE_CLOCK
+	tristate "Galaxy S10 ISPPRE camera clock provider"
+	depends on OF && PM && PM_GENERIC_DOMAINS && COMMON_CLK
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on m
+	select S10_ISPPRE_HOLD
+	help
+	  Register the Exynos 9820 ISPPRE camera Q-channel clocks. The
+	  module refuses to register its driver until s10-isppre-hold has
+	  bound, so a deferred hold requires loading this module again.
+
+	  This driver is a module named s10-isppre-clock.
+
+config S10_CIS_CLOCK
+	tristate "Galaxy S10 camera CIS output clocks"
+	depends on OF && COMMON_CLK
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on m
+	help
+	  Register the Exynos 9820 CIS0..4 camera master-clock outputs.
+
+	  This driver is a module named s10-cis-clock.
+
+config VIDEO_EXYNOS9820_CSIS
+	tristate "Exynos 9820 MIPI CSI-2 receiver"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && OF && PM && PM_GENERIC_DOMAINS && COMMON_CLK
+	depends on HAS_DMA
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on m
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select MFD_SYSCON
+	select S10_ISPPRE_HOLD
+	select S10_ISPPRE_CLOCK
+	help
+	  Video4Linux capture driver for the Exynos 9820 MIPI CSI-2
+	  receiver and its CSISX4 write DMA. Buffers are allocated with
+	  the in-tree videobuf2 DMA-contiguous allocator.
+
+	  Load s10-isppre-hold and wait for it to bind, then load
+	  s10-isppre-clock, before this module. This module also refuses
+	  to register until the hold is bound.
+
+	  This driver is a module named exynos9820-csis.
+
+config VIDEO_S5K_CIS
+	tristate "Samsung S5K3P9/S5K3M3/S5K3J1/S5K2L4 sensors"
+	depends on I2C && OF && VIDEO_DEV && PM && COMMON_CLK
+	depends on GPIOLIB && PINCTRL && REGULATOR
+	depends on m
+	select V4L2_FWNODE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select CRYPTO_LIB_SHA256
+	select FW_LOADER
+	select MULTIPLEXER
+	help
+	  Video4Linux sensor driver for the Galaxy S10 S5K3P9, S5K3M3,
+	  S5K3J1 and S5K2L4 cameras. Sensor register programs are loaded
+	  from /lib/firmware at probe; none are built into this module.
+
+	  This driver is a module named s5k-cis.
+
+config REGULATOR_S10_S2MPB03
+	tristate "Samsung S2MPB03 camera regulator"
+	depends on I2C && OF && REGULATOR
+	depends on m
+	select REGMAP_I2C
+	help
+	  I2C regulator driver for the Galaxy S10 S2MPB03 camera PMIC.
+	  It registers the camera supplies by default and refuses to
+	  touch the chip if an unapproved LDO is already enabled. Load it
+	  with regulators=0 to only identify the chip.
+
+	  This driver is a module named s10-s2mpb03.
