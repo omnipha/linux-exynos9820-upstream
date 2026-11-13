@@ -97,6 +97,7 @@ int s10_s2mpb02_buck1_require(struct device *consumer)
 {
 	struct device_link *link;
 	struct device *supplier;
+	bool ready;
 
 	mutex_lock(&pb02_lock);
 	supplier = pb02_ready_dev;
@@ -107,8 +108,19 @@ int s10_s2mpb02_buck1_require(struct device *consumer)
 		return -EPROBE_DEFER;
 
 	link = device_link_add(consumer, supplier, DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!link) {
+		put_device(supplier);
+		return -EPROBE_DEFER;
+	}
+
+	device_lock(supplier);
+	mutex_lock(&pb02_lock);
+	ready = device_is_bound(supplier) && pb02_ready_dev == supplier;
+	mutex_unlock(&pb02_lock);
+	device_unlock(supplier);
 	put_device(supplier);
-	return link ? 0 : -ENOMEM;
+
+	return ready ? 0 : -EPROBE_DEFER;
 }
 EXPORT_SYMBOL_GPL(s10_s2mpb02_buck1_require);
 
