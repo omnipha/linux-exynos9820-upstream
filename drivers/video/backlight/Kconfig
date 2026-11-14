@@ -521,6 +521,25 @@ config BACKLIGHT_LED
 	  If you have a LCD backlight adjustable by LED class driver, say Y
 	  to enable this driver.
 
+config BACKLIGHT_S6E3HA9_BEYOND2
+	bool "Samsung S6E3HA9 beyond2 provisional AOR backlight"
+	depends on ARCH_EXYNOS && OF && MFD_SYSCON && BACKLIGHT_CLASS_DEVICE=y
+	help
+	  Provisional backlight for the Galaxy S10+ S6E3HA9 beyond2 A3 S0
+	  panel. It writes only the AOR command through the DSIM command
+	  path left running by the bootloader and does not reconfigure DECON,
+	  DSIM, clocks, resets, or power.
+
+	  The 0..255 range is mapped by linear interpolation between the
+	  first 74 normal-mode brightness points in Samsung's beyond2 A3 S0
+	  table. A brightness of zero selects the table's lowest entry instead
+	  of turning the display off. Framebuffer blanking is ignored.
+	  Stock brightness also
+	  changes gamma, ELVSS, and VINT, and its AOR interpolation is not
+	  linear, so the resulting luminance curve is not the stock curve.
+	  High-brightness mode is not implemented. The mapping has not been
+	  measured on hardware.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endmenu
