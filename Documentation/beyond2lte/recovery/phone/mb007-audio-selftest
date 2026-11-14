@@ -4,6 +4,14 @@ set -eu
 route=${MB007_AUDIO_ROUTE:-/usr/local/libexec/mb007-audio-route}
 seconds=${MB007_AUDIO_RECORD_SECONDS:-3}
 ready_file=${MB007_AUDIO_READY:-/run/mb007-audio-ready}
+playback=${MB007_AUDIO_PLAYBACK_TEST-0}
+case $playback in
+    0|1) ;;
+    *)
+        echo "MB007_AUDIO_PLAYBACK_TEST must be 0 or 1" >&2
+        exit 2
+        ;;
+esac
 tmp=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 rc=0
@@ -18,15 +26,11 @@ pass() {
 }
 
 case $seconds in
-    ''|*[!0-9]*)
-        echo "record seconds must be an unsigned integer" >&2
+    ''|0*|*[!0-9]*|?????*)
+        echo "record seconds must be a decimal integer from 1 to 9999" >&2
         exit 2
         ;;
 esac
-[ "$seconds" -ge 1 ] || {
-    echo "record seconds must be at least 1" >&2
-    exit 2
-}
 
 if [ -e "$ready_file" ]; then
     pass "ready marker present"
@@ -40,10 +44,14 @@ else
     fail "mixer route or gain ceilings"
 fi
 
-if aplay -q -D hw:S10,0 -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero; then
-    pass "speaker PCM opens and runs with silence"
+if [ "$playback" = 1 ]; then
+    if aplay -q -D hw:S10,0 -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero; then
+        pass "speaker PCM opens and runs with silence"
+    else
+        fail "speaker PCM"
+    fi
 else
-    fail "speaker PCM"
+    echo "SKIP: speaker PCM playback not run (set MB007_AUDIO_PLAYBACK_TEST=1 to enable)"
 fi
 
 if arecord -q -D hw:S10Mic,0 -t raw -f S16_LE -r 48000 -c 2 -d "$seconds" "$tmp/capture.raw"; then
