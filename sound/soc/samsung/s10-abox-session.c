@@ -20,6 +20,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/spinlock.h>
+#include "s10-abox.h"
 
 #define CMU_PLL_LOCKTIME	0x0000
 #define CMU_PLL_CON0		0x0120
@@ -29,8 +31,6 @@
 #define CMU_PLL_MUX_SEL		BIT(4)
 #define CMU_DIV_UAIF1		0x1830
 #define CMU_DIV_BUSY		BIT(16)
-#define ABOX_QCH_DISABLE	0x0038
-#define ABOX_QCH_BCLK_UAIF1	BIT(3)
 #define ABOX_ROUTE_CTRL0	0x0040
 #define ABOX_UAIF1_CTRL0	0x0510
 #define ABOX_UAIF1_CTRL1	0x0514
@@ -43,6 +43,19 @@
 
 bool s10_abox_session_ready;
 EXPORT_SYMBOL_NS_GPL(s10_abox_session_ready, "S10_ABOX");
+
+static DEFINE_SPINLOCK(s10_abox_qch_lock);
+
+void s10_abox_qch_disable_set(void __iomem *abox, u32 bits)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&s10_abox_qch_lock, flags);
+	writel(readl(abox + ABOX_QCH_DISABLE) | bits, abox + ABOX_QCH_DISABLE);
+	readl(abox + ABOX_QCH_DISABLE);
+	spin_unlock_irqrestore(&s10_abox_qch_lock, flags);
+}
+EXPORT_SYMBOL_NS_GPL(s10_abox_qch_disable_set, "S10_ABOX");
 
 struct s10_abox {
 	struct device *dev;
@@ -130,8 +143,7 @@ static ssize_t uaif_test_store(struct device *dev, struct device_attribute *attr
 	mutex_lock(&a->lock);
 	s10_div_set(a->cmu + CMU_DIV_UAIF1, 191);	/* 589.824 MHz / 192 = 3.072 MHz */
 	writel((readl(a->gpb1 + GPB1_CON) & ~0xffff) | 0x2222, a->gpb1 + GPB1_CON);
-	writel(readl(a->abox + ABOX_QCH_DISABLE) | ABOX_QCH_BCLK_UAIF1,
-	       a->abox + ABOX_QCH_DISABLE);
+	s10_abox_qch_disable_set(a->abox, ABOX_QCH_BCLK_UAIF1);
 	/* 2 x 32 bit, BCLK inverted (board link), SLOT_MAX 1, SBIT_MAX 31 */
 	c1 = (0x19 << 24) | (1 << 18) | (31 << 12);
 	if (dspa)
@@ -247,7 +259,7 @@ static ssize_t rdma_test_store(struct device *dev, struct device_attribute *attr
 	/* UAIF1 master, I2S framing for pad visibility, 2 x 32 bit */
 	s10_div_set(a->cmu + CMU_DIV_UAIF1, 191);
 	writel((readl(a->gpb1 + GPB1_CON) & ~0xffff) | 0x2222, a->gpb1 + GPB1_CON);
-	writel(readl(a->abox + ABOX_QCH_DISABLE) | ABOX_QCH_BCLK_UAIF1, a->abox + ABOX_QCH_DISABLE);
+	s10_abox_qch_disable_set(a->abox, ABOX_QCH_BCLK_UAIF1);
 	c1 = (0x19 << 24) | (1 << 18) | (31 << 12);
 	writel(c1, a->abox + ABOX_UAIF1_CTRL1);
 	c0 = (readl(a->abox + ABOX_UAIF1_CTRL0) & ~0x7) | BIT(2);
@@ -303,7 +315,16 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	mutex_lock(&a->lock);
 	if (n == 3) {
-		writel(val, base + off);
+		if (base == a->abox && off == ABOX_QCH_DISABLE) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&s10_abox_qch_lock, flags);
+			writel(val, base + off);
+			readl(base + off);
+			spin_unlock_irqrestore(&s10_abox_qch_lock, flags);
+		} else {
+			writel(val, base + off);
+		}
 		dev_info(dev, "poke %s+%#x = %#x\n", blk, off, val);
 	}
 	s10_last_val = readl(base + off);

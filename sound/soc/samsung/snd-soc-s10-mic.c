@@ -19,9 +19,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "madera.h"
+#include "s10-abox.h"
 
 MODULE_IMPORT_NS("S10_ABOX");
-extern bool s10_abox_session_ready;
 
 #define DMA_BASE 0x3100 /* v2 WDMA1; WDMA0 belongs to the RSRC path */
 #define DMA_CTL 0x00
@@ -233,7 +233,7 @@ static int mic_link_params(struct snd_pcm_substream *ss, struct snd_pcm_hw_param
 	 * GPB1-0..3. See stock exynos9820.dts aud-i2s0-bus.
 	 */
 	writel((readl(m->gpio) & ~0xffff0) | 0x22220, m->gpio);
-	writel(readl(m->abox + 0x38) | BIT(2), m->abox + 0x38);
+	s10_abox_qch_disable_set(m->abox, ABOX_QCH_BCLK_UAIF0);
 	writel((9 << 24) | BIT(23) | BIT(18) | (15 << 12), m->abox + UAIF_FMT);
 	writel((readl(m->abox + UAIF_CTL) & ~7) | BIT(2) | BIT(1), m->abox + UAIF_CTL);
 	ret = snd_soc_component_set_pll(codec->component, MADERA_FLL1_REFCLK,

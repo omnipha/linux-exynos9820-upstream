@@ -26,17 +26,15 @@
 #include <sound/cs35l41.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include "s10-abox.h"
 
 MODULE_IMPORT_NS("S10_ABOX");
-extern bool s10_abox_session_ready;
 
 #define ABOX_PHYS		0x18c50000
 #define CMU_AUD_PHYS		0x18c00000
 #define GPB1_PHYS		0x18c60020
 
 #define ABOX_VERSION		0x0004
-#define ABOX_QCH_DISABLE	0x0038
-#define ABOX_QCH_BCLK_UAIF1	BIT(3)
 #define ABOX_ROUTE_CTRL0	0x0040
 #define ABOX_SPUS_SBANK_RDMA0	0x0220
 #define ABOX_UAIF1_CTRL0	0x0510
@@ -290,7 +288,7 @@ static int s10_uaif_hw_params(struct snd_pcm_substream *ss, struct snd_pcm_hw_pa
 		return ret;
 	/* gpb1-0 BCLK, -1 WS, -2 SDO, -3 SDI: function 2 (AUD block powered) */
 	writel((readl(a->gpb1) & ~0xffff) | 0x2222, a->gpb1);
-	writel(readl(a->abox + ABOX_QCH_DISABLE) | ABOX_QCH_BCLK_UAIF1, a->abox + ABOX_QCH_DISABLE);
+	s10_abox_qch_disable_set(a->abox, ABOX_QCH_BCLK_UAIF1);
 	if (width != 16)
 		return -EINVAL;
 	/* FORMAT (ch-1)|code<<3 = 0x09 (2 ch, 16 bit), SLOT_MAX 1, SBIT_MAX 15 */
