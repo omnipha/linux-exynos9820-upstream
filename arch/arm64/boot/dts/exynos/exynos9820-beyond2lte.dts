@@ -14,6 +14,12 @@
 	compatible = "samsung,beyond2lte", "samsung,exynos9820";
 	chassis-type = "handset";
 
+	aliases {
+		i2c0 = &hsi2c10;
+		i2c1 = &hsi2c45;
+		i2c2 = &hsi2c38;
+	};
+
 	chosen {
 		framebuffer0: framebuffer@ca000000 {
 			compatible = "simple-framebuffer";
