@@ -271,4 +271,11 @@
 	abox_mic_card: abox-mic-card {
 		compatible = "samsung,exynos9820-abox-mic-s10-test";
 	};
+
+	dsim0_aor_backlight: backlight@19080000 {
+		compatible = "samsung,s6e3ha9-beyond2-aor-backlight";
+		reg = <0x19080000 0x300>, <0x19161000 0x800>;
+		reg-names = "dsim", "dphy";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+	};
 };

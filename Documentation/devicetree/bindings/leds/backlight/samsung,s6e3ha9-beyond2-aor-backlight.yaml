@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/backlight/samsung,s6e3ha9-beyond2-aor-backlight.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S6E3HA9 beyond2 provisional AOR backlight
+
+maintainers:
+  - Gregor Sprint <gregor@sprintcx.de>
+
+description:
+  Board-specific backlight for the Galaxy S10+ S6E3HA9 beyond2 A3 S0 panel.
+  The node exposes the existing DSIM0 and D-PHY register windows so AOR
+  commands can be queued. It does not describe or change the DECON, clocks,
+  resets, power domains, or framebuffer.
+
+properties:
+  compatible:
+    const: samsung,s6e3ha9-beyond2-aor-backlight
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: dsim
+      - const: dphy
+
+  samsung,pmu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      PMU syscon used to confirm that the display power domain is on before
+      every display-controller register access.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - samsung,pmu-syscon
+
+additionalProperties: false
+
+examples:
+  - |
+    pmu: system-controller@15860000 {
+        compatible = "samsung,exynos9820-pmu", "syscon";
+        reg = <0x15860000 0x10000>;
+    };
+
+    backlight@19080000 {
+        compatible = "samsung,s6e3ha9-beyond2-aor-backlight";
+        reg = <0x19080000 0x300>, <0x19161000 0x800>;
+        reg-names = "dsim", "dphy";
+        samsung,pmu-syscon = <&pmu>;
+    };
