@@ -114,7 +114,7 @@ ensure_gain() {
         db_within "$cur" "$ceiling" 0.51 && return 0
         return 1
     fi
-    amixer -q -c "$card" sset "$ctl" -- "${ceiling}dB" >/dev/null 2>&1 || return 1
+    amixer -q -c "$card" sset "$ctl" "${ceiling}dB" >/dev/null 2>&1 || return 1
     cur=$(db_max "$card" "$ctl")
     [ -n "$cur" ] || return 1
     db_within "$cur" "$ceiling" 0.51

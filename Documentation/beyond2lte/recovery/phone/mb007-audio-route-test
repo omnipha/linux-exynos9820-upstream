@@ -23,7 +23,6 @@ while [ "$#" -gt 0 ]; do
         -c) card=$2; shift 2 ;;
         sget) mode=get; ctl=$2; shift 2 ;;
         sset) mode=set; ctl=$2; shift 2
-              [ "${1:-}" = -- ] && shift
               val=$1; shift ;;
         *) exit 2 ;;
     esac
