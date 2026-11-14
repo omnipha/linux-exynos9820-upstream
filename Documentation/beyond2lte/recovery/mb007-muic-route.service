@@ -2,6 +2,7 @@
 Description=mb007 persistent MAX77705 MUIC USB line routing
 ConditionKernelCommandLine=mb007.usb=1
 ConditionKernelCommandLine=mb007.muic=1
+ConditionPathIsDirectory=!/sys/bus/i2c/drivers/max77705-muic
 Before=unudhcpd@usb0.service
 After=sys-kernel-config.mount
 StartLimitIntervalSec=0
