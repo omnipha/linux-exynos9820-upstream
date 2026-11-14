@@ -118,4 +118,4 @@ On 2026-11-14, a one-shot read-only diagnostic on kernel `7.2.0-rc2-unified-mb00
 
 ## Licensing and private data
 
-Do not commit device-specific or proprietary firmware, extracted stock images, generated camera payloads, personal identifiers, network addresses or credentials. Public issue evidence must distinguish live measurements, stock descriptions and results from other devices. Individual source files retain their original license and authorship.
+The GPL-licensed S5K2L4 register tables are included under `firmware/samsung/s10/`. Do not commit other device-specific or proprietary firmware, extracted stock images, personal identifiers, network addresses or credentials. Public issue evidence must distinguish live measurements, stock descriptions and results from other devices. Individual source files retain their original license and authorship.

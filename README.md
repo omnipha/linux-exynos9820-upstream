@@ -56,7 +56,7 @@ make O=out ARCH=arm64 LLVM=-17 beyond2lte_defconfig
 make -j"$(nproc)" O=out ARCH=arm64 LLVM=-17 Image modules dtbs
 ```
 
-Needs Clang/LLVM 17. Output: `out/arch/arm64/boot/Image` and `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`. The S10 device tree is built alongside it. Details, firmware and the measured results: [Documentation/beyond2lte/STATUS.md](https://github.com/omnipha/linux-samsung-s10-exynos9820/blob/main/Documentation/beyond2lte/STATUS.md).
+Needs Clang/LLVM 17. Output: `out/arch/arm64/boot/Image` and `out/arch/arm64/boot/dts/exynos/exynos9820-beyond2lte.dtb`. The S10 device tree is built alongside it. The S5K2L4 camera register tables are in `firmware/samsung/s10/`. Details, firmware and the measured results: [Documentation/beyond2lte/STATUS.md](https://github.com/omnipha/linux-samsung-s10-exynos9820/blob/main/Documentation/beyond2lte/STATUS.md).
 
 There is no installer. Flashing without your own backup and recovery path can wipe the phone.
 
