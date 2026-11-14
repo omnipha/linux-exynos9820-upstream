@@ -21,7 +21,9 @@ both amplifiers; 0 % -> both at minimum. Analog gain stays at 20 and `vol_factor
 `mb007-audio-route` no longer resets the digital gain, so the slider value survives.
 
 Mute: the CS35L41 driver exposes no mute switch, so Phosh mute is PulseAudio software
-mute of the sink; it does not change the amplifier gain. Volume keys: three synthetic volume-up events through the Phosh media-keys
-daemon moved the sink from 35 % to 53 %, five volume-down events to 23 %,
-and both amplifiers followed each step. The physical buttons were not pressed.
-Not verified acoustically: slider, keys and mute by ear (joint listening test pending).
+mute of the sink; it does not change the amplifier gain.
+
+Volume keys: three synthetic volume-up events through the Phosh media-keys daemon
+moved the sink from 35 % to 53 %, five volume-down events to 23 %, and both amplifiers
+followed each step. The physical buttons were not pressed. Persistence after reboot is
+not yet measured. Not verified acoustically: slider, keys and mute by ear.
