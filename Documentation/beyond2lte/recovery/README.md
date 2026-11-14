@@ -112,6 +112,10 @@ phone, with a verified second copy off the device):
 - `SHA256SUMS`: hashes of the normal payloads, the loader copies and both
   module manifests, relative to the backup directory.
 
+The off-device copy was assembled separately and may use different manifest
+names, for example one `module-hashes.txt` instead of the two module manifests.
+Compare names and contents before relying on either copy.
+
 Prerequisites: stable power, a way to pick a boot-menu entry, root access over
 a console or USB SSH, `/boot` mounted read-write with about 64 MiB free (the
 staged copies sit next to the old files), and an independent recovery method.
