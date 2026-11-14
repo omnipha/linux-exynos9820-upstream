@@ -284,20 +284,6 @@ static ssize_t regs_show(struct device *dev, struct device_attribute *attr, char
 		readl(m->abox + 0x328), readl(m->gpio));
 }
 static DEVICE_ATTR_RO(regs);
-static ssize_t codec_regs_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct s10_mic *m = mic_from_dev(dev);
-	static const unsigned int regs[] = { 0x20, 0x100, 0x101, 0x218, 0x21c,
-		0x320, 0x328, 0x500, 0x501, 0x503, 0x507, 0x508, 0x509, 0x519,
-		0x1708, 0x170a, 0x170c, 0x170e };
-	int i, n = 0;
-
-	for (i = 0; i < ARRAY_SIZE(regs); i++)
-		n += sysfs_emit_at(buf, n, "%04x=%04x\n", regs[i],
-			snd_soc_component_read(m->codec_component, regs[i]));
-	return n;
-}
-static DEVICE_ATTR_RO(codec_regs);
 static ssize_t pads_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct s10_mic *m = mic_from_dev(dev);
@@ -316,7 +302,7 @@ static ssize_t pads_show(struct device *dev, struct device_attribute *attr, char
 }
 static DEVICE_ATTR_RO(pads);
 static struct attribute *mic_attrs[] = {
-	&dev_attr_regs.attr, &dev_attr_codec_regs.attr, &dev_attr_pads.attr, NULL,
+	&dev_attr_regs.attr, &dev_attr_pads.attr, NULL,
 };
 ATTRIBUTE_GROUPS(mic);
 
