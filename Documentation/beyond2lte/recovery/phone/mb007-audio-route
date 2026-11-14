@@ -125,6 +125,10 @@ apply_target() {
         speaker)
             ensure_gain "$speaker_card" 'Bottom Digital PCM' "$speaker_db" &&
                 ensure_gain "$speaker_card" 'Receiver Digital PCM' "$speaker_db" &&
+                ensure_enum "$speaker_card" 'Bottom ASP TX1 Source' Zero &&
+                ensure_enum "$speaker_card" 'Bottom ASP TX2 Source' Zero &&
+                ensure_enum "$speaker_card" 'Receiver ASP TX1 Source' Zero &&
+                ensure_enum "$speaker_card" 'Receiver ASP TX2 Source' Zero &&
                 ensure_enum "$speaker_card" 'Bottom PCM Source' ASP &&
                 ensure_enum "$speaker_card" 'Receiver PCM Source' ASP
             ;;

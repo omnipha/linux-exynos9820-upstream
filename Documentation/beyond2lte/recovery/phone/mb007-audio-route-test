@@ -33,11 +33,22 @@ key=$(printf '%s_%s' "$card" "$ctl" | tr ' ' '_')
 printf '%s %s %s\n' "$mode" "$key" "$val" >> "$state/log"
 case $ctl in
     'Bottom Digital PCM'|'Receiver Digital PCM'|'IN3L Digital'|'IN4L Digital') kind=gain; dflt=0.00dB ;;
-    'Bottom PCM Source'|'Receiver PCM Source') kind=enum; dflt=DSP ;;
-    'AIF1TX1 Input 1'|'AIF1TX2 Input 1') kind=enum; dflt=None ;;
+    'Bottom PCM Source'|'Receiver PCM Source')
+        kind=enum; dflt=DSP; items="'ASP' 'DSP'" ;;
+    'Bottom ASP TX1 Source'|'Receiver ASP TX1 Source')
+        kind=enum; dflt=VMON
+        items="'Zero' 'ASPRX1' 'ASPRX2' 'VMON' 'IMON' 'VPMON' 'VBSTMON' 'DSPTX1' 'DSPTX2'" ;;
+    'Bottom ASP TX2 Source'|'Receiver ASP TX2 Source')
+        kind=enum; dflt=IMON
+        items="'Zero' 'ASPRX1' 'ASPRX2' 'VMON' 'IMON' 'VPMON' 'VBSTMON' 'DSPTX1' 'DSPTX2'" ;;
+    'AIF1TX1 Input 1'|'AIF1TX2 Input 1')
+        kind=enum; dflt=None; items="'None' 'IN3L' 'IN4L'" ;;
     *) exit 1 ;;
 esac
 if [ "$mode" = set ]; then
+    if [ "$kind" = enum ]; then
+        printf '%s\n' "$items" | grep -Fq "'$val'" || exit 1
+    fi
     if [ -f "$state/fail-$key" ]; then
         n=$(cat "$state/fail-$key")
         if [ "$n" -gt 0 ]; then
@@ -52,7 +63,7 @@ cur=$(cat "$state/val-$key" 2>/dev/null || echo "$dflt")
 if [ "$kind" = gain ]; then
     printf '  Mono: Playback 128 [67%%] [%s]\n' "$cur"
 else
-    printf "  Items: 'x'\n  Item0: '%s'\n" "$cur"
+    printf "  Items: %s\n  Item0: '%s'\n" "$items" "$cur"
 fi
 FAKE
 chmod 0755 "$root/bin/amixer"
@@ -119,6 +130,19 @@ check_val "speaker bottom gain" S10_Bottom_Digital_PCM -12dB
 check_val "speaker receiver gain" S10_Receiver_Digital_PCM -12dB
 check_val "bottom source" S10_Bottom_PCM_Source ASP
 check_val "receiver source" S10_Receiver_PCM_Source ASP
+check_val "bottom tx1 source" S10_Bottom_ASP_TX1_Source Zero
+check_val "bottom tx2 source" S10_Bottom_ASP_TX2_Source Zero
+check_val "receiver tx1 source" S10_Receiver_ASP_TX1_Source Zero
+check_val "receiver tx2 source" S10_Receiver_ASP_TX2_Source Zero
+tx_line=$(grep -n '^set S10_\(Bottom\|Receiver\)_ASP_TX[12]_Source Zero$' "$root/state/log" | tail -n 1 | cut -d: -f1)
+pcm_line=$(grep -n '^set S10_\(Bottom\|Receiver\)_PCM_Source ASP$' "$root/state/log" | head -n 1 | cut -d: -f1)
+tx_count=$(grep -c '^set S10_\(Bottom\|Receiver\)_ASP_TX[12]_Source Zero$' "$root/state/log" || true)
+if [ "$tx_count" -eq 4 ] && [ -n "$tx_line" ] && [ -n "$pcm_line" ] && [ "$tx_line" -lt "$pcm_line" ]; then
+    echo "PASS: tx sources zeroed before pcm source asp"
+else
+    echo "FAIL: tx sources not zeroed before pcm source asp" >&2
+    failures=$((failures + 1))
+fi
 check_val "mic left gain" S10Mic_IN3L_Digital -6dB
 check_val "mic right gain" S10Mic_IN4L_Digital -6dB
 check_val "mic left route" S10Mic_AIF1TX1_Input_1 IN3L
@@ -148,6 +172,25 @@ printf '%s\n' DSP > "$root/state/val-S10_Bottom_PCM_Source"
 expect "check rejects wrong source" 1 "$route" --check
 expect "apply restores source" 0 "$route"
 check_val "source restored" S10_Bottom_PCM_Source ASP
+
+printf '%s\n' VMON > "$root/state/val-S10_Bottom_ASP_TX1_Source"
+printf '%s\n' IMON > "$root/state/val-S10_Receiver_ASP_TX2_Source"
+expect "check rejects active tx source" 1 "$route" --check
+expect "apply restores tx source" 0 "$route"
+check_val "bottom tx1 restored" S10_Bottom_ASP_TX1_Source Zero
+check_val "receiver tx2 restored" S10_Receiver_ASP_TX2_Source Zero
+
+reset
+echo 99 > "$root/state/fail-S10_Bottom_ASP_TX2_Source"
+expect "tx source failure blocks asp" 1 "$route"
+if grep -q '^set S10_\(Bottom\|Receiver\)_PCM_Source ASP$' "$root/state/log"; then
+    echo "FAIL: asp enabled before tx source zeroed" >&2
+    failures=$((failures + 1))
+else
+    echo "PASS: asp not enabled before tx source zeroed"
+fi
+check_val "blocked bottom pcm source" S10_Bottom_PCM_Source unset
+check_val "blocked receiver pcm source" S10_Receiver_PCM_Source unset
 
 reset
 echo 2 > "$root/state/fail-S10Mic_IN3L_Digital"
