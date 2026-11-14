@@ -42,3 +42,8 @@ obj-$(CONFIG_SND_SOC_ARNDALE) += snd-soc-arndale.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_TM2_WM5110) += snd-soc-tm2-wm5110.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_ARIES_WM8994) += snd-soc-aries-wm8994.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_MIDAS_WM1811) += snd-soc-midas-wm1811.o
+obj-$(CONFIG_SND_SOC_S10_ABOX_SESSION) += s10-abox-session.o
+obj-$(CONFIG_SND_SOC_S10_ABOX) += snd-soc-s10-abox.o
+obj-$(CONFIG_SND_SOC_S10_MIC) += snd-soc-s10-mic.o
+
+CFLAGS_snd-soc-s10-mic.o += -I$(srctree)/sound/soc/codecs

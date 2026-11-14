@@ -116,6 +116,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args child, parent;
 	struct exynos_pm_domain *pd;
+	bool guarded = false;
 	int on, ret;
 
 	pm_domain_cfg = of_device_get_match_data(dev);
@@ -146,7 +147,31 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	on = readl_relaxed(pd->base + 0x4) & pd->local_pwr_cfg;
 
-	pm_genpd_init(&pd->pd, NULL, !on);
+	if (IS_ENABLED(CONFIG_SND_SOC_S10_ABOX_SESSION) &&
+	    of_machine_is_compatible("samsung,beyond2lte") &&
+	    of_device_is_compatible(np, "samsung,exynos9820-pd")) {
+		struct resource res;
+
+		if (!of_address_to_resource(np, 0, &res) &&
+		    res.start == 0x15861900) {
+			if (!on) {
+				ret = exynos_pd_power_on(&pd->pd);
+				if (ret) {
+					iounmap(pd->base);
+					return ret;
+				}
+				on = true;
+			}
+			pd->pd.flags |= GENPD_FLAG_ALWAYS_ON;
+			guarded = true;
+		}
+	}
+
+	ret = pm_genpd_init(&pd->pd, NULL, !on);
+	if (guarded && ret) {
+		iounmap(pd->base);
+		return ret;
+	}
 	ret = of_genpd_add_provider_simple(np, &pd->pd);
 
 	if (ret == 0 && of_parse_phandle_with_args(np, "power-domains",

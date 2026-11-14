@@ -1,0 +1,19 @@
+[Unit]
+Description=mb007 speaker and microphone mixer route
+ConditionPathExists=/proc/device-tree/soc@0/abox-speaker-card
+ConditionPathExists=/proc/device-tree/soc@0/abox-mic-card
+After=systemd-udevd.service systemd-modules-load.service alsa-restore.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/mb007-audio
+ExecStart=/usr/local/libexec/mb007-audio-route
+RemainAfterExit=yes
+TimeoutStartSec=150
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

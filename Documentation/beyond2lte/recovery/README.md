@@ -43,9 +43,21 @@ seconds, but that does not replace the boot test.
 
 ## Boot menu
 
-Keep a normal entry and `safemode.conf`. Do not make a test kernel the
-default. The templates use `<BOOT_UUID>` and `<ROOT_UUID>`; do not publish the
-values from one phone.
+The current phone has exactly three loader entries. The normal entry,
+`/boot/loader/entries/pmos-mb007.conf`, uses:
+
+- `/boot/vmlinuz-unified-mb007-camera`
+- `/boot/initramfs-unified-mb007-camera`
+- `/boot/dtbs/exynos/exynos9820-beyond2lte-camera.dtb`
+
+`safemode.conf` and `fsck.conf` use the separate payloads `/boot/vmlinuz`,
+`/boot/initramfs-muic-guard`, and their separate DTBs. Do not replace those
+payloads or edit any loader entry during normal-entry rollback. Do not make a
+test kernel the default.
+
+The published templates are not this layout: both share `vmlinuz`, `initramfs`,
+and one DTB. They therefore do not guarantee an independent recovery entry.
+They use `<BOOT_UUID>` and `<ROOT_UUID>`; do not publish values from one phone.
 
 ## Host side (USB SSH and internet sharing)
 
@@ -71,5 +83,107 @@ are not supported by this XZ decoder)`, followed by
 `Kernel panic - VFS: Unable to mount root fs on unknown-block(0,0)` at 1.09 s.
 A working initramfs had xz stream flags `00 01` (CRC32); the failing one had
 `00 04` (CRC64). Pack with `xz --check=crc32` (see
-`Documentation/staging/xz.rst`). That CRC32 fixes the boot is not yet
-confirmed by a successful boot.
+`Documentation/staging/xz.rst`). A CRC32 initramfs containing one XZ stream
+with a 1 MiB dictionary booted once with the QCH kernel. CRC32 was not tested
+in isolation, so this does not establish that the checksum change alone fixed
+the boot.
+
+## Untested rollback of the normal boot entry
+
+This restores only the normal kernel, initramfs and camera DTB from a backup
+taken before a test kernel was installed. The restore has not been executed, so
+neither this procedure nor the resulting boot is verified. It does not touch
+the safe-mode and fsck payloads, the loader entries or `/usr/lib/modules`.
+
+Backup layout (one directory, here `/root/issue17-pre-qch-20261114` on the
+phone, with a verified second copy off the device):
+
+- `vmlinuz-unified-mb007-camera`, `initramfs-unified-mb007-camera` and
+  `dtbs/exynos/exynos9820-beyond2lte-camera.dtb`: the previous normal payloads.
+  The file name says "camera"; the kernel inside is the previous audio build, so
+  take the old release from its embedded version string, not from the name.
+- `loader/`: copies of `loader.conf` and the three entries.
+- `modules/<old release>/`: a copy of the old module tree.
+- `live-module-hashes.txt` and `backup-module-hashes.txt`: hashes of the module
+  files, relative to `modules/`.
+- `safe-fsck-payload-hashes.txt`: hashes of the live safe-mode and fsck
+  payloads, relative to `/boot`. They are not copied, so a changed file can be
+  detected but not restored from this backup.
+- `SHA256SUMS`: hashes of the normal payloads, the loader copies and both
+  module manifests, relative to the backup directory.
+
+The off-device copy was assembled separately and may use different manifest
+names, for example one `module-hashes.txt` instead of the two module manifests.
+Compare names and contents before relying on either copy.
+
+Prerequisites: stable power, a way to pick a boot-menu entry, root access over
+a console or USB SSH, `/boot` mounted read-write with about 64 MiB free (the
+staged copies sit next to the old files), and an independent recovery method.
+Boot the safe-mode entry, not the normal one, and keep loader contents and
+manifests out of public logs.
+
+Put the blocks below in a script and run it with `sh -eu`; they use `exit`, so
+pasting them into a login shell would end it. `OLDREL` is the release string
+found inside the backed-up kernel.
+
+```sh
+BACKUP=/root/issue17-pre-qch-20261114
+OLDREL='<release string from the backed-up kernel>'
+ENTRIES='<normal entry>.conf <safe entry>.conf <fsck entry>.conf'
+KERNEL=vmlinuz-unified-mb007-camera
+INITRAMFS=initramfs-unified-mb007-camera
+DTB=dtbs/exynos/exynos9820-beyond2lte-camera.dtb
+
+grep -q 'systemd.unit=multi-user.target' /proc/cmdline || exit 1
+grep -Eq ' /boot [^ ]+ rw[, ]' /proc/mounts || exit 1
+df -Pk /boot | awk 'NR==2 { exit !($4 >= 65536) }' || exit 1
+grep -aqF "$OLDREL" "$BACKUP/$KERNEL" || exit 1
+(cd "$BACKUP" && sha256sum -c SHA256SUMS) || exit 1
+(cd "$BACKUP/modules" && sha256sum -c ../backup-module-hashes.txt) || exit 1
+(cd /boot && sha256sum -c "$BACKUP/safe-fsck-payload-hashes.txt") || exit 1
+[ "$(find /boot/loader/entries -name '*.conf' | wc -l)" -eq 3 ] || exit 1
+for e in $ENTRIES; do
+    cmp -s "$BACKUP/loader/entries/$e" "/boot/loader/entries/$e" || exit 1
+done
+cmp -s "$BACKUP/loader/loader.conf" /boot/loader/loader.conf || exit 1
+```
+
+Whether the live modules for `OLDREL` are intact is a separate question:
+`(cd /usr/lib/modules && sha256sum -c "$BACKUP/live-module-hashes.txt")`. A
+failure means the modules need their own restore, which this procedure does not
+cover.
+
+Stage, compare, rename, then check again. Stop if a staging file already exists.
+
+```sh
+for n in "$KERNEL" "$INITRAMFS" "$DTB"; do
+    [ ! -e "/boot/$n.rollback-new" ] && [ ! -L "/boot/$n.rollback-new" ] || exit 1
+done
+for n in "$KERNEL" "$INITRAMFS" "$DTB"; do
+    install -m 0755 "$BACKUP/$n" "/boot/$n.rollback-new" || exit 1
+    cmp -s "$BACKUP/$n" "/boot/$n.rollback-new" || exit 1
+done
+sync
+for n in "$KERNEL" "$INITRAMFS" "$DTB"; do
+    mv -f "/boot/$n.rollback-new" "/boot/$n" || {
+        echo "ERROR: normal payloads are now mixed; stay in safe mode" >&2
+        exit 1
+    }
+done
+sync
+echo 3 > /proc/sys/vm/drop_caches
+(cd "$BACKUP" && sha256sum -c SHA256SUMS) || exit 1
+for n in "$KERNEL" "$INITRAMFS" "$DTB"; do
+    cmp -s "$BACKUP/$n" "/boot/$n" || exit 1
+done
+(cd /boot && sha256sum -c "$BACKUP/safe-fsck-payload-hashes.txt") || exit 1
+```
+
+The `SHA256SUMS` check after the renames covers the backup copies, so the
+`cmp` loop is what ties the installed files to them. FAT renames are not
+crash-atomic and the three renames are not a transaction: after a power loss or
+an error, stay in safe mode and look at all three files before a normal boot.
+After the first normal boot, check that `uname -r` equals `OLDREL`, that the
+payload and loader checks above still pass, and that `/boot/loader/entries`
+still holds exactly three entries. Do not call the rollback working before that
+boot has been done.

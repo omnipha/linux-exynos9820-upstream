@@ -14,6 +14,12 @@
 	compatible = "samsung,beyond2lte", "samsung,exynos9820";
 	chassis-type = "handset";
 
+	aliases {
+		i2c0 = &hsi2c10;
+		i2c1 = &hsi2c45;
+		i2c2 = &hsi2c38;
+	};
+
 	chosen {
 		framebuffer0: framebuffer@ca000000 {
 			compatible = "simple-framebuffer";
@@ -149,5 +155,120 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <3>;
+	};
+};
+
+&pinctrl_cmgp {
+	amp_int: amp-int-pins {
+		samsung,pins = "gpm24-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&usi2 {
+	status = "okay";
+	samsung,mode = <USI_MODE_SPI>;
+};
+
+&spi2 {
+	cs-gpios = <&gpp0 7 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&spi2_bus &spi2_cs>;
+	status = "okay";
+
+	cs47l93: codec@0 {
+		compatible = "cirrus,cs47l93";
+		reg = <0>;
+		spi-max-frequency = <25000000>;
+		interrupts-extended = <&gpa2 2 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#sound-dai-cells = <1>;
+		AVDD-supply = <&ldo17m>;
+		DBVDD1-supply = <&ldo17m>;
+		CPVDD1-supply = <&ldo17m>;
+		CPVDD2-supply = <&ldo18m>;
+		DCVDD-supply = <&ldo18m>;
+		reset-gpios = <&gpg1 0 GPIO_ACTIVE_LOW>;
+		cirrus,dmic-ref = <0 0 1 1 0 0>;
+		cirrus,inmode = <0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0>;
+		cirrus,out-mono = <0 0 0 1 0 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&codec_reset &codec_irq>;
+
+		controller-data {
+			samsung,spi-feedback-delay = <1>;
+		};
+	};
+};
+
+&usi17 {
+	status = "okay";
+	samsung,mode = <USI_MODE_I2C>;
+};
+
+&hsi2c38 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&hsi2c38_bus &spk_amp_reset &rcv_amp_reset &amp_int>;
+	status = "okay";
+
+	speaker_amp: amplifier@40 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+		#sound-dai-cells = <1>;
+		sound-name-prefix = "Bottom";
+		interrupts-extended = <&gpm24 0 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gph1 1 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-type = <0>;
+		cirrus,boost-peak-milliamp = <4100>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <10>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+	};
+
+	receiver_amp: amplifier@41 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x41>;
+		#sound-dai-cells = <1>;
+		sound-name-prefix = "Receiver";
+		interrupts-extended = <&gpm24 0 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gph1 2 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-type = <0>;
+		cirrus,boost-peak-milliamp = <4100>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <10>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+	};
+};
+
+&pinctrl_aud {
+	power-domains = <&pd_aud>;
+};
+
+&soc {
+	audio_probe: audio-probe@18c00000 {
+		compatible = "samsung,exynos9820-aud-probe-test";
+		reg = <0x18c00000 0x8000>, <0x18c50000 0x10000>;
+		reg-names = "cmu", "abox";
+		clock-names = "top";
+		clocks = <&cmu_top CLK_DOUT_CMU_AUD_CPU>;
+		power-domains = <&pd_aud>;
+	};
+
+	abox_speaker_card: abox-speaker-card {
+		compatible = "samsung,exynos9820-abox-s10-test";
+		samsung,amplifiers = <&speaker_amp &receiver_amp>;
+	};
+
+	abox_mic_card: abox-mic-card {
+		compatible = "samsung,exynos9820-abox-mic-s10-test";
 	};
 };
