@@ -1,0 +1,1 @@
+SUBSYSTEM=="sound", KERNEL=="card*", ATTR{id}=="S10", ENV{PULSE_PROFILE_SET}="mb007-s10.conf"
