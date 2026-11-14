@@ -126,8 +126,6 @@ else
     echo "FAIL: ready marker missing" >&2
     failures=$((failures + 1))
 fi
-check_val "speaker bottom gain" S10_Bottom_Digital_PCM -12dB
-check_val "speaker receiver gain" S10_Receiver_Digital_PCM -12dB
 check_val "bottom source" S10_Bottom_PCM_Source ASP
 check_val "receiver source" S10_Receiver_PCM_Source ASP
 check_val "bottom tx1 source" S10_Bottom_ASP_TX1_Source Zero
@@ -157,16 +155,6 @@ if grep -q '^set ' "$root/state/log"; then
 else
     echo "PASS: idempotent run wrote nothing"
 fi
-
-printf '%s\n' -30dB > "$root/state/val-S10_Bottom_Digital_PCM"
-: > "$root/state/log"
-expect "quieter saved gain accepted" 0 "$route"
-check_val "quieter gain not raised" S10_Bottom_Digital_PCM -30dB
-
-printf '%s\n' 0.00dB > "$root/state/val-S10_Bottom_Digital_PCM"
-expect "check rejects loud gain" 1 "$route" --check
-expect "apply lowers loud gain" 0 "$route"
-check_val "loud gain lowered" S10_Bottom_Digital_PCM -12dB
 
 printf '%s\n' DSP > "$root/state/val-S10_Bottom_PCM_Source"
 expect "check rejects wrong source" 1 "$route" --check

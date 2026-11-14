@@ -14,8 +14,12 @@ Install on the phone:
 - `mb007-audio.default` -> `/etc/default/mb007-audio`
 
 Then `udevadm control --reload; udevadm trigger --subsystem-match=sound --action=change`
-and restart PulseAudio. Measured: sink `analog-stereo` with HW_VOLUME_CTRL; 30 % ->
-Bottom -7.4 dB, 10 % -> -36 dB, 0 % -> both amplifiers 0; mute not mapped to hardware.
-Analog gain stays at 20 and `vol_factor` at 0 dB (drop-in); the slider scales the digital gain.
-Not yet verified: Receiver follows only at higher levels (merge order); `mb007-audio-route --check`
-reports digital gain above its -12 dB ceiling once the slider is raised.
+and restart PulseAudio. Each amplifier gets its own channel mask (Bottom = front-right,
+Receiver = front-left), so both follow the slider equally. Measured via `pactl`/`amixer`
+(no sound played): 10 % -> -48 dB, 30 % -> -19.4 dB, 60 % -> -1.25 dB, 100 % -> +12 dB on
+both amplifiers; 0 % -> both at minimum. Analog gain stays at 20 and `vol_factor` at 0 dB.
+`mb007-audio-route` no longer resets the digital gain, so the slider value survives.
+
+Mute: the CS35L41 driver exposes no mute switch, so Phosh mute is PulseAudio software
+mute of the sink; it does not change the amplifier gain. Not verified acoustically:
+slider, volume keys and mute by ear (joint listening test pending).
