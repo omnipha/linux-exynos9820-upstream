@@ -40,14 +40,13 @@ else
     fail "mixer route or gain ceilings"
 fi
 
-if aplay -q -D hw:S10,0 -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero 2>"$tmp/aplay.err"; then
+if aplay -q -D hw:S10,0 -t raw -f S16_LE -r 48000 -c 2 -d 1 /dev/zero; then
     pass "speaker PCM opens and runs with silence"
 else
     fail "speaker PCM"
-    cat "$tmp/aplay.err" >&2
 fi
 
-if arecord -q -D hw:S10Mic,0 -t raw -f S16_LE -r 48000 -c 2 -d "$seconds" "$tmp/capture.raw" 2>"$tmp/arecord.err"; then
+if arecord -q -D hw:S10Mic,0 -t raw -f S16_LE -r 48000 -c 2 -d "$seconds" "$tmp/capture.raw"; then
     pass "microphone PCM recorded"
     frames=$((seconds * 48000))
     if od -An -v -t d2 -w4 "$tmp/capture.raw" | awk -v want="$frames" '
@@ -71,7 +70,6 @@ if arecord -q -D hw:S10Mic,0 -t raw -f S16_LE -r 48000 -c 2 -d "$seconds" "$tmp/
     fi
 else
     fail "microphone PCM"
-    cat "$tmp/arecord.err" >&2
 fi
 
 exit "$rc"
