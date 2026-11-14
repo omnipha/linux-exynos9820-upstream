@@ -116,4 +116,4 @@ The stock display description names panel `s6e3ha9_beyond2_a3_s0_default`. The S
 
 ## Licensing and private data
 
-Do not commit device-specific or proprietary firmware, extracted stock images, generated camera payloads, personal identifiers, network addresses or credentials. Public issue evidence must distinguish live measurements, stock descriptions and results from other devices. Individual source files retain their original license and authorship.
+The GPL-licensed S5K2L4 register tables are included under `firmware/samsung/s10/`. Do not commit other device-specific or proprietary firmware, extracted stock images, personal identifiers, network addresses or credentials. Public issue evidence must distinguish live measurements, stock descriptions and results from other devices. Individual source files retain their original license and authorship.

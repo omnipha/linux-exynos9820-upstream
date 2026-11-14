@@ -1,0 +1,14 @@
+Samsung S10 camera sensor register tables
+
+s5k2l4.s5k contains the S5K2L4 register and initialization tables used by the
+experimental camera driver. It was generated from
+drivers/media/platform/exynos/fimc-is2/sensor/module_framework/cis/fimc-is-cis-2l4-setA.h
+in LineageOS/android_kernel_samsung_exynos9820 at
+4bcfb0263b21b553760a3bdce542452db3184820.
+
+That input is Copyright (c) 2016 Samsung Electronics Co., Ltd and is licensed
+under GPL-2.0. Input SHA-256:
+858bcedcff68dcd4671a09234a959a36a82ded6b5903ca6f07fa448c95362c7b
+
+The packed file is 9057 bytes. Its SHA-256 is:
+b9a47b96c8068aebd0d386c942a53f63c78a17218edb08969374dad395a61239
