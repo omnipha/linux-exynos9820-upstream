@@ -112,7 +112,9 @@ Stock DT calls the device `sec-nfc@27` on I2C20 (`0x108e0000`). Stock Android re
 
 ## Brightness — [#21](https://github.com/omnipha/linux-samsung-s10-exynos9820/issues/21)
 
-The stock display description names panel `s6e3ha9_beyond2_a3_s0_default`. The S10 reference DECON driver uses `Beyond1 A3 S0` brightness/AOR points, not a validated S10+ curve. S10+ panel and dimming sources are available in the [pinned LineageOS Exynos 9820 kernel](https://github.com/LineageOS/android_kernel_samsung_exynos9820/tree/4bcfb0263b21b553760a3bdce542452db3184820/drivers/video/fbdev/exynos/panel/s6e3ha9). The applicable panel table and visible brightness changes remain to be verified on this device.
+The stock display description names panel `s6e3ha9_beyond2_a3_s0_default`. The S10 reference DECON driver uses `Beyond1 A3 S0` brightness/AOR points, not a validated S10+ curve. S10+ panel and dimming sources are available in the [pinned LineageOS Exynos 9820 kernel](https://github.com/LineageOS/android_kernel_samsung_exynos9820/tree/4bcfb0263b21b553760a3bdce542452db3184820/drivers/video/fbdev/exynos/panel/s6e3ha9).
+
+On 2026-11-14, a one-shot read-only diagnostic on kernel `7.2.0-rc2-unified-mb007-audio-g7f58fe95d838` reported the display power domain on, DSIM version `0x02030000`, command-mode configuration, empty transmit FIFOs and the D-PHY PLL lock bit set. The separate read-only test left the framebuffer and USB SSH running and did not send panel commands. No brightness control, panel readback or visible change was measured in that test. The applicable panel table and visible brightness changes remain to be verified on this device.
 
 ## Licensing and private data
 
