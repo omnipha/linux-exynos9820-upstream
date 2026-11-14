@@ -20,6 +20,7 @@
 #include <sound/soc.h>
 #include "madera.h"
 
+MODULE_IMPORT_NS("S10_ABOX");
 extern bool s10_abox_session_ready;
 
 #define DMA_BASE 0x3100 /* v2 WDMA1; WDMA0 belongs to the RSRC path */

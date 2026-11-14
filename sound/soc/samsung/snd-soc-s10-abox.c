@@ -27,6 +27,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+MODULE_IMPORT_NS("S10_ABOX");
 extern bool s10_abox_session_ready;
 
 #define ABOX_PHYS		0x18c50000

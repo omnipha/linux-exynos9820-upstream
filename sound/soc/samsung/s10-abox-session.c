@@ -42,7 +42,7 @@
 #define PMU_PAD_NORMAL_BIT	BIT(11)
 
 bool s10_abox_session_ready;
-EXPORT_SYMBOL_GPL(s10_abox_session_ready);
+EXPORT_SYMBOL_NS_GPL(s10_abox_session_ready, "S10_ABOX");
 
 struct s10_abox {
 	struct device *dev;
