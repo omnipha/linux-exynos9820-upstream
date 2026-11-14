@@ -1,0 +1,13 @@
+[General]
+auto-profiles = no
+
+[Mapping analog-stereo]
+device-strings = hw:%f,0
+channel-map = left,right
+paths-output = mb007-s10-speaker
+direction = output
+
+[Profile output:analog-stereo]
+description = Stereo
+output-mappings = analog-stereo
+priority = 100
